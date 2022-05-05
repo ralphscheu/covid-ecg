@@ -26,7 +26,9 @@ requirements: test_environment
 
 ## Make Dataset
 data: requirements
-	$(PYTHON_INTERPRETER) src/data/make_dataset.py data/raw data/processed
+	$(PYTHON_INTERPRETER) covid-ecg/data/get_ecg_readings_from_xml.py data/raw/ecg_covid_xml data/interim/ecg_covid_txt 
+	$(PYTHON_INTERPRETER) covid-ecg/data/get_ecg_readings_from_xml.py data/raw/ecg_postcovid_xml data/interim/ecg_postcovid_txt 
+	$(PYTHON_INTERPRETER) covid-ecg/data/get_ecg_readings_from_xml.py data/raw/ecg_ctrl_xml data/interim/ecg_ctrl_txt 
 
 ## Delete all compiled Python files
 clean:
@@ -35,7 +37,7 @@ clean:
 
 ## Lint using flake8
 lint:
-	flake8 src
+	flake8 covid-ecg
 
 ## Set up python interpreter environment
 create_environment:
