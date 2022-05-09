@@ -6,6 +6,7 @@ from pathlib import Path
 import xml.etree.cElementTree as ET
 from dotenv import find_dotenv, load_dotenv
 from tqdm import tqdm
+import pandas as pd
 
 namespaces = {'': 'urn:hl7-org:v3'}
 datetime_format = '%Y%m%d%H%M%S.%f'
@@ -28,15 +29,18 @@ def main(input_dir, output_dir, prefix):
     except FileExistsError:
         pass
 
-    ecg_runs = []
+    ecg_runs = pd.DataFrame(
+        columns=[
+            'pat_id', 'pat_group', 'ecg_type', 'ecg_length'
+        ]
+    )
 
     files = list(Path(input_dir).glob('*.xml'))
     for file in tqdm(files, desc="Processing files"):
-        ecg = {}
 
         file_name_split = file.name.split('-')
-        ecg['pat_id'] = prefix + file_name_split[0]
-        ecg['type'] = file_name_split[-2]
+        pat_id = prefix + file_name_split[0]
+        ecg_type = file_name_split[-2]
 
         tree = ET.parse(file)
         root = tree.getroot()
@@ -54,21 +58,33 @@ def main(input_dir, output_dir, prefix):
 
             for lead in leads:
                 lead_names.append(lead.find('code', namespaces).attrib['code'])
-                digits.append(lead.find('value/digits', namespaces).text)
+                lead_digits = lead.find('value/digits', namespaces).text
+                digits.append(lead_digits)
 
-            run_id = f"{ecg['pat_id']}_RUN{effectiveTimeLow}"
+            run_id = f"{pat_id}_RUN{effectiveTimeLow}"
 
             with open(f"{output_dir}/{run_id}.txt", 'w') as f:
+                # save lead names order for reference
                 for ln in lead_names:
                     f.write(f'{ln}\n')
+                # save ECG measurements
                 for d in digits:
                     f.write(f'{d}\n')
 
-        ecg_runs.append(ecg)
+            ecg_runs = pd.concat(
+                [
+                    ecg_runs,
+                    pd.DataFrame({
+                        'pat_id': pat_id,
+                        'pat_group': prefix,
+                        'ecg_type': ecg_type,
+                        'ecg_length': len(digits[0].split(' '))
+                    }, index=[run_id])
+                ]
+            )
 
-    with open(f'data/interim/ECG_RUNS_{prefix}.txt', 'w') as f:
-        for run in ecg_runs:
-            f.write(" ".join(list(run.values())) + "\n")
+    ecg_runs.to_csv(f'data/interim/ecg_runs_{prefix}.csv')
+
 
     logger.info(f'Done. Saved txt files to {output_dir}')
 

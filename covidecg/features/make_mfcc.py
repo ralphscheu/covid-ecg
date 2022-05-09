@@ -30,11 +30,8 @@ def main(input_dir, output_dir):
         elif signal.shape[1] < 5000: 
             print(f"Short signal! ({signal.shape[1]})")
 
-        # signal = signal[1, :]  # only use Lead II for now
-
         mfcc_feat = []
         for lead_i, lead_signal in enumerate(signal):
-
             lead_mfcc = mfcc(lead_signal, int(os.environ['SAMPLING_RATE']))
             mfcc_feat.append(lead_mfcc)
         
