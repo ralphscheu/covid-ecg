@@ -25,10 +25,10 @@ requirements: test_environment
 	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
 
 ## Make Dataset
-data: requirements
-	$(PYTHON_INTERPRETER) covid-ecg/data/get_ecg_readings_from_xml.py data/raw/ecg_covid_xml data/interim/ecg_covid_txt 
-	$(PYTHON_INTERPRETER) covid-ecg/data/get_ecg_readings_from_xml.py data/raw/ecg_postcovid_xml data/interim/ecg_postcovid_txt 
-	$(PYTHON_INTERPRETER) covid-ecg/data/get_ecg_readings_from_xml.py data/raw/ecg_ctrl_xml data/interim/ecg_ctrl_txt 
+data: 
+	$(PYTHON_INTERPRETER) covid-ecg/data/extract_ecg_runs.py data/raw/ecg_export_covid data/interim/ecg_runs_covid COVID
+	$(PYTHON_INTERPRETER) covid-ecg/data/extract_ecg_runs.py data/raw/ecg_export_postcovid data/interim/ecg_runs_postcovid POSTCOVID
+	$(PYTHON_INTERPRETER) covid-ecg/data/extract_ecg_runs.py data/raw/ecg_export_ctrl data/interim/ecg_runs_ctrl CTRL
 
 ## Delete all compiled Python files
 clean:
