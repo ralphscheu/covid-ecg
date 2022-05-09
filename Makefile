@@ -30,6 +30,11 @@ data:
 	$(PYTHON_INTERPRETER) covid-ecg/data/extract_ecg_runs.py data/raw/ecg_export_postcovid data/interim/ecg_runs_postcovid POSTCOVID
 	$(PYTHON_INTERPRETER) covid-ecg/data/extract_ecg_runs.py data/raw/ecg_export_ctrl data/interim/ecg_runs_ctrl CTRL
 
+features:
+	${PYTHON_INTERPRETER} covid-ecg/features/make_mfcc.py data/interim/ecg_runs_covid data/interim/ecg_runs_mfcc_covid
+	${PYTHON_INTERPRETER} covid-ecg/features/make_mfcc.py data/interim/ecg_runs_postcovid data/interim/ecg_runs_mfcc_postcovid
+	${PYTHON_INTERPRETER} covid-ecg/features/make_mfcc.py data/interim/ecg_runs_ctrl data/interim/ecg_runs_mfcc_ctrl
+
 ## Delete all compiled Python files
 clean:
 	find . -type f -name "*.py[co]" -delete
