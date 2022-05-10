@@ -7,6 +7,8 @@ import xml.etree.cElementTree as ET
 from dotenv import find_dotenv, load_dotenv
 from tqdm import tqdm
 import pandas as pd
+import warnings
+warnings.filterwarnings('ignore')
 
 namespaces = {'': 'urn:hl7-org:v3'}
 datetime_format = '%Y%m%d%H%M%S.%f'
@@ -15,8 +17,9 @@ datetime_format = '%Y%m%d%H%M%S.%f'
 @click.command()
 @click.argument('input_dir', type=click.Path(exists=True))
 @click.argument('output_dir', type=click.Path())
-@click.argument('prefix', type=str)
-def main(input_dir, output_dir, prefix):
+@click.option('--prefix', required=True, type=str)
+@click.option('--patients-list', required=True, type=click.Path())
+def main(input_dir, output_dir, prefix, patients_list):
     """ Runs data processing scripts to turn raw data from (../raw) into
         cleaned data ready to be analyzed (saved in ../processed).
     """
@@ -29,11 +32,9 @@ def main(input_dir, output_dir, prefix):
     except FileExistsError:
         pass
 
-    ecg_runs = pd.DataFrame(
-        columns=[
-            'pat_id', 'pat_group', 'ecg_type', 'ecg_length'
-        ]
-    )
+    patients_list = pd.read_csv(patients_list, sep=';')
+
+    ecg_runs = pd.DataFrame(columns=['run_id', 'pat_id', 'pat_group', 'ecg_type', 'ecg_length'])
 
     files = list(Path(input_dir).glob('*.xml'))
     for file in tqdm(files, desc="Processing files"):
@@ -46,6 +47,7 @@ def main(input_dir, output_dir, prefix):
         root = tree.getroot()
 
         for run_i, ecg_run in enumerate(
+
             root.findall('component/series', namespaces)):
 
             effectiveTimeLow = ecg_run.find('effectiveTime/low', namespaces).get('value')
@@ -70,20 +72,37 @@ def main(input_dir, output_dir, prefix):
                 # save ECG measurements
                 for d in digits:
                     f.write(f'{d}\n')
+            
+            # calculate patient age
+            patients_list['birth_date'] = pd.to_datetime(patients_list['birth_date'], format='%Y-%m-%d')
+            patients_list['diagnose_date'] = pd.to_datetime(patients_list['diagnose_date'], format='%Y-%m-%d')
+            patients_list['age'] = (patients_list['diagnose_date'] - patients_list['birth_date']).astype('<m8[Y]')
+
+            try:
+                pat_info = patients_list.loc[ patients_list['nr'].astype(str) == file_name_split[0]].iloc[0]
+            except:
+                continue
+                # TODO: why are these two patients missing?
 
             ecg_runs = pd.concat(
                 [
                     ecg_runs,
                     pd.DataFrame({
+                        'run_id': run_id,
+                        'run_timestamp': effectiveTimeLow,
                         'pat_id': pat_id,
                         'pat_group': prefix,
+                        'pat_gender': pat_info['gender'],
+                        'pat_age': pat_info['age'],
+                        'pat_diagnose': pat_info['diagnose'],
+                        'pat_diagnose_date': pat_info['diagnose_date'],
                         'ecg_type': ecg_type,
                         'ecg_length': len(digits[0].split(' '))
                     }, index=[run_id])
                 ]
             )
 
-    ecg_runs.to_csv(f'data/interim/ecg_runs_{prefix}.csv')
+    ecg_runs.to_csv(f'data/interim/ecg_runs_{prefix}.csv', sep=';', index=False)
 
 
     logger.info(f'Done. Saved txt files to {output_dir}')
