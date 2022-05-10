@@ -1,7 +1,9 @@
 import numpy as np
 
 
-def compute_rr_intervals(rpeaks:list):
+def compute_rr_intervals(rpeaks:list) -> np.ndarray:
+    if len(rpeaks) < 2:
+        return []  # abort
     rr_intervals = []
     for left_peak_i in range(0, len(rpeaks) - 1):
         right_peak_i = left_peak_i + 1
