@@ -1,4 +1,4 @@
-.PHONY: clean data lint requirements
+.PHONY: clean data lint requirements features-medical features-lfcc features
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -24,17 +24,6 @@ requirements: test_environment
 	$(PYTHON_INTERPRETER) -m pip install -U pip setuptools wheel
 	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
 
-## Make Dataset
-data: 
-	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py data/raw/ecg_export_covid data/interim/ecg_runs_covid COVID
-	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py data/raw/ecg_export_postcovid data/interim/ecg_runs_postcovid POSTCOVID
-	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py data/raw/ecg_export_ctrl data/interim/ecg_runs_ctrl CTRL
-
-features:
-	${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_covid data/interim/ecg_runs_mfcc_covid
-	${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_postcovid data/interim/ecg_runs_mfcc_postcovid
-	${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_ctrl data/interim/ecg_runs_mfcc_ctrl
-
 ## Delete all compiled Python files
 clean:
 	find . -type f -name "*.py[co]" -delete
@@ -42,7 +31,7 @@ clean:
 
 ## Lint using flake8
 lint:
-	flake8 covid-ecg
+	flake8 covidecg
 
 ## Set up python interpreter environment
 create_environment:
@@ -70,6 +59,30 @@ test_environment:
 # PROJECT RULES                                                                 #
 #################################################################################
 
+
+## Make Dataset
+data: 
+	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix COVID --patients-list data/raw/patients_covid.csv data/raw/ecg_export_covid data/interim/ecg_runs_covid
+	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix POSTCOVID --patients-list data/raw/patients_postcovid.csv data/raw/ecg_export_postcovid data/interim/ecg_runs_postcovid
+# $(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py data/raw/ecg_export_ctrl data/interim/ecg_runs_ctrl CTRL
+
+
+## Generate medical measurement features (Peaks, Intervals)
+features-medical:
+	# MFCC features over complete runs
+	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_covid data/interim/ecg_runs_mfcc_covid
+	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_postcovid data/interim/ecg_runs_mfcc_postcovid
+	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_ctrl data/interim/ecg_runs_mfcc_ctrl
+
+
+## Generate spectral features (Linear Frequency Cepstral Coefficients)
+features-lfcc:
+	# ECG-specific features (Peaks, Intervals, Amplitudes)
+	${PYTHON_INTERPRETER} covidecg/features/make_ecg_feats.py data/interim/ecg_runs_covid data/interim/ecg_runs_feats_covid
+
+
+## Generate features
+features: features-medical features-lfcc
 
 
 #################################################################################
