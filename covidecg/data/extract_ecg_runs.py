@@ -19,7 +19,9 @@ datetime_format = '%Y%m%d%H%M%S.%f'
 @click.argument('output_dir', type=click.Path())
 @click.option('--prefix', required=True, type=str)
 @click.option('--patients-list', required=True, type=click.Path())
-def main(input_dir, output_dir, prefix, patients_list):
+@click.option('--min-length', type=int, default=5000)
+@click.option('--max-length', type=int, default=5000)
+def main(input_dir, output_dir, prefix, patients_list, min_length, max_length):
     """ Runs data processing scripts to turn raw data from (../raw) into
         cleaned data ready to be analyzed (saved in ../processed).
     """
@@ -46,9 +48,7 @@ def main(input_dir, output_dir, prefix, patients_list):
         tree = ET.parse(file)
         root = tree.getroot()
 
-        for run_i, ecg_run in enumerate(
-
-            root.findall('component/series', namespaces)):
+        for run_i, ecg_run in enumerate(root.findall('component/series', namespaces)):
 
             effectiveTimeLow = ecg_run.find('effectiveTime/low', namespaces).get('value')
             # effectiveTimeHigh = ecg_run.find('effectiveTime/high', namespaces).get('value')
@@ -63,7 +63,13 @@ def main(input_dir, output_dir, prefix, patients_list):
                 lead_digits = lead.find('value/digits', namespaces).text
                 digits.append(lead_digits)
 
-            run_id = f"{pat_id}_RUN{effectiveTimeLow}"
+            ecg_length = len(digits[0].split(' '))
+            
+            # skip recordings that are shorter or longer than desired
+            if ecg_length < min_length or ecg_length > max_length:
+                continue
+
+            run_id = f"{pat_id}_run{effectiveTimeLow}"
 
             with open(f"{output_dir}/{run_id}.txt", 'w') as f:
                 # save lead names order for reference
@@ -82,7 +88,7 @@ def main(input_dir, output_dir, prefix, patients_list):
                 pat_info = patients_list.loc[ patients_list['nr'].astype(str) == file_name_split[0]].iloc[0]
             except:
                 continue
-                # TODO: why are these two patients missing?
+                # TODO: why are there two patients missing?
 
             ecg_runs = pd.concat(
                 [
@@ -97,7 +103,7 @@ def main(input_dir, output_dir, prefix, patients_list):
                         'pat_diagnose': pat_info['diagnose'],
                         'pat_diagnose_date': pat_info['diagnose_date'],
                         'ecg_type': ecg_type,
-                        'ecg_length': len(digits[0].split(' '))
+                        'ecg_length': ecg_length
                     }, index=[run_id])
                 ]
             )
