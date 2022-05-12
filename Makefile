@@ -62,27 +62,48 @@ test_environment:
 
 ## Make Dataset
 data: 
-	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix COVID --patients-list data/raw/patients_covid.csv data/raw/ecg_export_covid data/interim/ecg_runs_covid
-	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix POSTCOVID --patients-list data/raw/patients_postcovid.csv data/raw/ecg_export_postcovid data/interim/ecg_runs_postcovid
-# $(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py data/raw/ecg_export_ctrl data/interim/ecg_runs_ctrl CTRL
+
+	# Extract runs
+	rm -r data/interim/ecg_runs_covid
+	mkdir data/interim/ecg_runs_covid
+	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix covid --patients-list data/raw/patients_covid.csv data/raw/ecg_export_covid data/interim/ecg_runs_covid
+# $(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix POSTCOVID --patients-list data/raw/patients_postcovid.csv data/raw/ecg_export_postcovid data/interim/ecg_runs_postcovid
+	rm -r data/interim/ecg_runs_ctrl
+	mkdir data/interim/ecg_runs_ctrl
+	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix ctrl --patients-list data/raw/patients_ctrl.csv data/raw/ecg_export_ctrl data/interim/ecg_runs_ctrl
+
+	# merge ecg run directories
+	rm -r data/interim/ecg_runs
+	mkdir data/interim/ecg_runs
+	ln -s $(shell pwd)/data/interim/ecg_runs_covid/* $(shell pwd)/data/interim/ecg_runs/
+	ln -s $(shell pwd)/data/interim/ecg_runs_ctrl/* $(shell pwd)/data/interim/ecg_runs/
+
+	# merge ecg run info csv files
+	cp data/interim/ecg_runs_covid.csv data/interim/ecg_runs.csv
+# tail -n +2 data/interim/ecg_runs_POSTCOVID.csv >> data/interim/ecg_runs.csv
+	tail -n +2 data/interim/ecg_runs_ctrl.csv >> data/interim/ecg_runs.csv
 
 
 ## Generate medical measurement features (Peaks, Intervals)
-features-medical:
+lfcc:
 	# MFCC features over complete runs
 	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_covid data/interim/ecg_runs_mfcc_covid
-	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_postcovid data/interim/ecg_runs_mfcc_postcovid
+# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_postcovid data/interim/ecg_runs_mfcc_postcovid
 	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_ctrl data/interim/ecg_runs_mfcc_ctrl
 
 
 ## Generate spectral features (Linear Frequency Cepstral Coefficients)
-features-lfcc:
+medfeats:
 	# ECG-specific features (Peaks, Intervals, Amplitudes)
 	${PYTHON_INTERPRETER} covidecg/features/make_ecg_feats.py data/interim/ecg_runs_covid data/interim/ecg_runs_feats_covid
 
 
 ## Generate features
 features: features-medical features-lfcc
+
+
+train:
+	${PYTHON_INTERPRETER} covidecg/models/train.py
 
 
 #################################################################################
