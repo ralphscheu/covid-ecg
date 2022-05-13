@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from  torch.utils.data import Dataset
 import neurokit2 as nk
+import covidecg.data.utils
 
 
 class EcgDataset(Dataset):
@@ -35,7 +36,7 @@ class EcgDataset(Dataset):
 
     def __getitem__(self, index):
         signal_path = os.path.join(self.signals_dir, self.runs_info.iloc[index]['run_id'] + '.txt')
-        signal = np.loadtxt(signal_path, skiprows=12)  # first 12 rows contain the lead names for reference
+        signal = covidecg.data.utils.load_run_signal(signal_path)
 
         if self.lead_index is not None:
             signal = signal[self.lead_index, :]
