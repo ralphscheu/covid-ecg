@@ -76,8 +76,8 @@ class EcgSignalCleaner(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, x):
-        clean_func = lambda raw_signal: nk.ecg_clean(raw_signal, sampling_rate=self.sampling_rate)
-        return np.array(list(map(clean_func, x)))
+        cleaned_signals = [nk.ecg_clean(signal, sampling_rate=self.sampling_rate) for signal in x]
+        return np.vstack(cleaned_signals)
 
 
 # def process_signal(ecg_signal):
