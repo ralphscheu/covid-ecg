@@ -24,13 +24,17 @@ def load_runs(runs_info_file, root_dir):
         signal = load_signal(signal_path)
         signals.append(signal)
         targets.append(runs_info.iloc[i]['pat_group'])
-    return np.stack(signals), targets
+    return np.stack(signals).astype(np.float32), targets
 
 
 def to_categorical(y, num_classes=2):
     """ 1-hot encodes a tensor """
     y = y.astype(int)
     return np.eye(num_classes, dtype='uint8')[y]
+
+
+def flatten_leads(x):
+    return x.reshape(x.shape[0], -1)
 
 
 ##########################################################
@@ -61,7 +65,7 @@ class EcgLeadSelector(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, x):
-        return x[:, self.lead_index, :]
+        return x[:, self.lead_index, :]  # x.shape is ( num_samples, num_leads, length_recording )
 
 
 class EcgSignalCleaner(BaseEstimator, TransformerMixin):
