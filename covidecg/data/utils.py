@@ -82,8 +82,17 @@ class EcgLeadSelector(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, x):
-        lead_signal = x[:, self.lead_index]  # x.shape is ( num_samples, num_leads, length_recording )
-        return lead_signal[np.newaxis, :]
+        """Select and return single ECG lead from given signal.
+
+        Args:
+            x (np.ndarray): Batch of 12-lead ECG signals of shape (batch_size, 12, timesteps)
+
+        Returns:
+            np.ndarray: 1-lead ECG signal of shape (batch_size, 1, timesteps)
+        """
+        lead_signal = x[:, self.lead_index]
+        lead_signal = lead_signal[:, np.newaxis]  # restore leads dimension with size 1 (1-lead signal)
+        return lead_signal
 
 
 class EcgSignalCleaner(BaseEstimator, TransformerMixin):
