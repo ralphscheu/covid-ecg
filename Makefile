@@ -62,13 +62,13 @@ test_environment:
 
 ## Make Dataset
 data: 
-
 	# Extract runs
+	rm -rf data/interim/ecg_runs
 	rm -rf data/interim/ecg_runs_covid
 	mkdir data/interim/ecg_runs_covid
 	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix covid --patients-list data/raw/patients_covid.csv data/raw/ecg_export_covid data/interim/ecg_runs_covid
 # $(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix POSTCOVID --patients-list data/raw/patients_postcovid.csv data/raw/ecg_export_postcovid data/interim/ecg_runs_postcovid
-	rm -r data/interim/ecg_runs_ctrl
+	rm -rf data/interim/ecg_runs_ctrl
 	mkdir data/interim/ecg_runs_ctrl
 	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix ctrl --patients-list data/raw/patients_ctrl.csv data/raw/ecg_export_ctrl data/interim/ecg_runs_ctrl
 

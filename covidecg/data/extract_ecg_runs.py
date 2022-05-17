@@ -7,6 +7,7 @@ import xml.etree.cElementTree as ET
 from dotenv import find_dotenv, load_dotenv
 from tqdm import tqdm
 import pandas as pd
+import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -21,7 +22,8 @@ datetime_format = '%Y%m%d%H%M%S.%f'
 @click.option('--patients-list', required=True, type=click.Path())
 @click.option('--min-length', type=int, default=5000)
 @click.option('--max-length', type=int, default=5000)
-def main(input_dir, output_dir, prefix, patients_list, min_length, max_length):
+@click.option('--sampling-rate', type=float, default=500)
+def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, sampling_rate):
     """ Runs data processing scripts to turn raw data from (../raw) into
         cleaned data ready to be analyzed (saved in ../processed).
     """
@@ -40,7 +42,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length):
 
     files = list(Path(input_dir).glob('*.xml'))
     for file in tqdm(files, desc="Processing files"):
-
+        
         file_name_split = file.name.split('-')
         pat_id = prefix + file_name_split[0]
         ecg_type = file_name_split[-2]
@@ -55,29 +57,24 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length):
             sequenceSet = ecg_run.find('component/sequenceSet', namespaces)
             leads = sequenceSet.findall('component/sequence', namespaces)[1:13]
 
-            lead_names = []
-            digits = []
+            run_df = pd.DataFrame()
 
             for lead in leads:
-                lead_names.append(lead.find('code', namespaces).attrib['code'])
+                lead_name = lead.find('code', namespaces).attrib['code']
                 lead_digits = lead.find('value/digits', namespaces).text
-                digits.append(lead_digits)
+                lead_digits = lead_digits.split(' ')  # convert to list for saving into DataFrame column
+                run_df[lead_name] = lead_digits
 
-            ecg_length = len(digits[0].split(' '))
-            
-            # skip recordings that are shorter or longer than desired
-            if ecg_length < min_length or ecg_length > max_length:
-                continue
+            ecg_length = len(run_df.index)
 
             run_id = f"{pat_id}_run{effectiveTimeLow}"
+            
+            # generate DataFrame Index as milliseconds from start of run
+            ms_between_samples = int(1.0 / sampling_rate * 1000)
+            run_df.index = pd.RangeIndex(0, ms_between_samples * len(run_df.index), ms_between_samples)
 
-            with open(f"{output_dir}/{run_id}.txt", 'w') as f:
-                # save lead names order for reference
-                for ln in lead_names:
-                    f.write(f'{ln}\n')
-                # save ECG measurements
-                for d in digits:
-                    f.write(f'{d}\n')
+            # save ECG data
+            run_df.to_csv(f"{output_dir}/{run_id}.csv", index=True)
             
             # calculate patient age
             patients_list['birth_date'] = pd.to_datetime(patients_list['birth_date'], format='%Y-%m-%d')
@@ -87,8 +84,9 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length):
             try:
                 pat_info = patients_list.loc[ patients_list['nr'].astype(str) == file_name_split[0]].iloc[0]
             except:
-                continue
+                logger.warn(f"Could not find patient {file_name_split[0]} in list!")
                 # TODO: why are there two patients missing?
+                continue
 
             ecg_runs = pd.concat(
                 [
@@ -108,6 +106,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length):
                 ]
             )
 
+    # save ECG runs metadata
     ecg_runs.to_csv(f'data/interim/ecg_runs_{prefix}.csv', sep=';', index=False)
 
 
