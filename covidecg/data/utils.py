@@ -82,7 +82,8 @@ class EcgLeadSelector(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, x):
-        return x[:, self.lead_index, :]  # x.shape is ( num_samples, num_leads, length_recording )
+        lead_signal = x[:, self.lead_index]  # x.shape is ( num_samples, num_leads, length_recording )
+        return lead_signal[np.newaxis, :]
 
 
 class EcgSignalCleaner(BaseEstimator, TransformerMixin):
@@ -93,23 +94,10 @@ class EcgSignalCleaner(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, x):
-        cleaned_signals = [nk.ecg_clean(signal, sampling_rate=self.sampling_rate) for signal in x]
-        return np.vstack(cleaned_signals)
-
-
-# def process_signal(ecg_signal):
-#     # Do processing
-#     ecg_cleaned = nk.ecg_clean(ecg, sampling_rate=1000)
-#     instant_peaks, rpeaks, = nk.ecg_peaks(ecg_cleaned, sampling_rate=1000)
-#     rate = nk.ecg_rate(rpeaks, sampling_rate=1000, desired_length=len(ecg_cleaned))
-#     quality = nk.ecg_quality(ecg_cleaned, sampling_rate=1000)
-
-#     # Prepare output
-#     signals = pd.DataFrame({"ECG_Raw": ecg_signal,
-#                             "ECG_Clean": ecg_cleaned,
-#                             "ECG_Rate": rate,
-#                             "ECG_Quality": quality})
-#     signals = pd.concat([signals, instant_peaks], axis=1)
-#     info = rpeaks
-
-#     return signals, info
+        cleaned_signals = []
+        for lead_i in range(x.shape[1]):
+            lead_signals = x[:, lead_i]
+            cleaned_lead_signal = [nk.ecg_clean(signal, sampling_rate=self.sampling_rate) for signal in lead_signals]
+            cleaned_signals.append(cleaned_lead_signal)
+        cleaned_signals = np.vstack(cleaned_signals)  # to numpy array
+        return cleaned_signals[np.newaxis, :]

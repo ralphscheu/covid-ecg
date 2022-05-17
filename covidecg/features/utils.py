@@ -5,6 +5,7 @@ import numpy as np
 import sklearn.preprocessing
 import sklearn.pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
+import spafe.features.lfcc
 
 
 ##########################################################
@@ -29,7 +30,6 @@ def compute_pr_intervals(p_onsets:list, q_onsets:list):
         raise Exception("Cannot compute PR Intervals: No Q Onsets provided!")
     
     if len(p_onsets) != len(q_onsets):
-        print()
         raise Exception(message=f"Different number of P-Onsets and Q-Onsets, cannot compute PR Intervals! - p_onsets: {len(p_onsets)}, q_onsets:{len(q_onsets)}")
         # TODO handle different lengths -> only use P-Q pairs
     
@@ -49,7 +49,10 @@ def get_peaks_features(signal, sampling_rate):
     peaks_feats.append(rpeaks_y.std())
     
     other_peaks_locations = nk.ecg_delineate(signal, sampling_rate=sampling_rate)[1]
+
     # Q Peaks
+    print(other_peaks_locations)
+    print("Q Peaks:", other_peaks_locations['ECG_Q_Peaks'])
     qpeaks_y = signal[other_peaks_locations['ECG_Q_Peaks']]
     peaks_feats.append(qpeaks_y.mean())
     peaks_feats.append(qpeaks_y.std())
@@ -61,9 +64,9 @@ def get_peaks_features(signal, sampling_rate):
     tpeaks_y = signal[other_peaks_locations['ECG_T_Peaks']]
     peaks_feats.append(tpeaks_y.mean())
     peaks_feats.append(tpeaks_y.std())
-    
+
     return peaks_feats
-    
+
 
 def get_interval_features(signal, sampling_rate):
     interval_feats = []
@@ -75,7 +78,6 @@ def get_interval_features(signal, sampling_rate):
     interval_feats.append(rr_intervals.std())
     
     other_peaks_locations = nk.ecg_delineate(signal, sampling_rate=sampling_rate)[1]
-    print(other_peaks_locations.keys())
     
     # PR Intervals
     # estimate Q onset locations TODO: find method to actually determine Q onsets
@@ -125,3 +127,18 @@ class EcgIntervalFeatsExtractor(BaseEstimator, TransformerMixin):
         interval_feats = [get_interval_features(signal, sampling_rate=self.sampling_rate) for signal in x]
         return np.array(interval_feats)
 
+
+class EcgLfccFeatsExtractor(BaseEstimator, TransformerMixin):
+    def __init__(self, sampling_rate=500):
+        self.sampling_rate = sampling_rate
+
+    def fit(self, x, y=None):
+        return self
+    
+    def transform(self, x):
+        lfcc_feats = []
+        for lead_i in range(x.shape[1]):
+            lead_signals = x[:, lead_i]
+            lead_lfcc_feats = [spafe.features.lfcc.lfcc(signal, fs=self.sampling_rate) for signal in lead_signals]
+            lfcc_feats.append(lead_lfcc_feats)
+        return np.vstack(lfcc_feats)[np.newaxis, :]
