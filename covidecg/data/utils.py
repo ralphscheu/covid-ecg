@@ -12,19 +12,36 @@ from sklearn.base import BaseEstimator, TransformerMixin
 ##########################################################
 
 def load_signal(filepath):
-    return np.loadtxt(filepath, skiprows=12)  # first 12 rows contain the lead names for reference
+    return pd.read_csv(filepath, index_col=0).to_numpy().T
 
 
-def load_runs(runs_info_file, root_dir):
+def load_runs(runs_list, root_dir, min_length=5000, max_length=5000):
     """ Load raw ECG Signals from runs dir """
-    runs_info = pd.read_csv(runs_info_file, sep=';')
+    
+    runs_list = runs_list.loc[runs_list.ecg_length >= min_length]
+    runs_list = runs_list.loc[runs_list.ecg_length <= max_length]
+    
     signals, targets = [], []
-    for i in range(len(runs_info.index)):
-        signal_path = os.path.join(root_dir, runs_info.iloc[i]['run_id'] + '.txt')
+    for i in range(len(runs_list.index)):        
+        signal_path = os.path.join(root_dir, runs_list.iloc[i]['run_id'] + '.csv')
         signal = load_signal(signal_path)
         signals.append(signal)
-        targets.append(runs_info.iloc[i]['pat_group'])
-    return np.stack(signals).astype(np.float32), targets
+        targets.append(runs_list.iloc[i]['pat_group'])
+    return np.stack(signals).astype(np.float32), np.array(targets)
+
+def load_all_runs(runs_csv, root_dir):
+    runs_list = pd.read_csv(runs_csv, sep=';')
+    return load_runs(runs_list, root_dir)
+
+def load_stress_ecg_runs(runs_csv, root_dir):
+    runs_list = pd.read_csv(runs_csv, sep=';')
+    runs_list = runs_list.loc[runs_list.ecg_type == 'Belastungs']
+    return load_runs(runs_list, root_dir)
+
+def load_rest_ecg_runs(runs_csv, root_dir):
+    runs_list = pd.read_csv(runs_csv, sep=';')
+    runs_list = runs_list.loc[runs_list.ecg_type == 'Ruhe']
+    return load_runs(runs_list, root_dir)
 
 
 def to_categorical(y, num_classes=2):
