@@ -6,6 +6,8 @@ import sklearn.preprocessing
 import sklearn.pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
 import spafe.features.lfcc
+import biosppy.signals.tools
+import biosppy.signals.ecg as ecg
 
 
 ##########################################################
@@ -22,7 +24,6 @@ def compute_rr_intervals(rpeaks:list) -> np.ndarray:
     rr_intervals = np.array(rr_intervals)
     return rr_intervals
 
-
 def compute_pr_intervals(p_onsets:list, q_onsets:list):
     if len(p_onsets) < 1:
         raise Exception("Cannot compute PR Intervals: No P Onsets provided!")
@@ -38,35 +39,52 @@ def compute_pr_intervals(p_onsets:list, q_onsets:list):
         pr_intervals.append(_q_onset - _p_onset)
     return np.array(pr_intervals)
     
+def get_rpeaks_locations(signal, sampling_rate):
+    (rpeaks_locations,) = ecg.hamilton_segmenter(signal=signal, sampling_rate=sampling_rate)
+    # correct R-peak locations
+    (rpeaks_locations,) = ecg.correct_rpeaks(
+        signal=signal, rpeaks=rpeaks_locations, sampling_rate=sampling_rate, tol=0.05
+    )
+    return rpeaks_locations
 
 def get_peaks_features(signal, sampling_rate):
+    """Compute Peaks Features as mean+std of signal at Q, R, S, T peak locations
+
+    Args:
+        signal (np.ndarray): filtered signal
+        sampling_rate (int): Sampling rate
+
+    Returns:
+        list: Peaks features (mean+std signal amplitude at Q, R, S, T peaks)
+    """
     peaks_feats = []
     
     # R Peaks
-    rpeaks_locations = nk.ecg_peaks(signal, sampling_rate=sampling_rate)[1]['ECG_R_Peaks']
+    rpeaks_locations = get_rpeaks_locations(signal, sampling_rate)
     rpeaks_y = signal[rpeaks_locations]
     peaks_feats.append(rpeaks_y.mean())
     peaks_feats.append(rpeaks_y.std())
     
-    other_peaks_locations = nk.ecg_delineate(signal, sampling_rate=sampling_rate)[1]
+    other_peaks_locations = nk.ecg_delineate(signal, method='dwt', sampling_rate=sampling_rate)[1]
 
     # Q Peaks
-    print(other_peaks_locations)
-    print("Q Peaks:", other_peaks_locations['ECG_Q_Peaks'])
+    # print(other_peaks_locations)
+    # print("Q Peaks:", other_peaks_locations['ECG_Q_Peaks'])
     qpeaks_y = signal[other_peaks_locations['ECG_Q_Peaks']]
     peaks_feats.append(qpeaks_y.mean())
     peaks_feats.append(qpeaks_y.std())
+    
     # S Peaks
     speaks_y = signal[other_peaks_locations['ECG_S_Peaks']]
     peaks_feats.append(speaks_y.mean())
     peaks_feats.append(speaks_y.std())
+    
     # T Peaks
     tpeaks_y = signal[other_peaks_locations['ECG_T_Peaks']]
     peaks_feats.append(tpeaks_y.mean())
     peaks_feats.append(tpeaks_y.std())
 
     return peaks_feats
-
 
 def get_interval_features(signal, sampling_rate):
     interval_feats = []
@@ -98,7 +116,6 @@ def get_interval_features(signal, sampling_rate):
     interval_feats.append(qt_intervals.std())
     
     return interval_feats
-
 
 ##########################################################
 #               PIPELINE BUILDING BLOCKS                 #
@@ -141,4 +158,4 @@ class EcgLfccFeatsExtractor(BaseEstimator, TransformerMixin):
             lead_signals = x[:, lead_i]
             lead_lfcc_feats = [spafe.features.lfcc.lfcc(signal, fs=self.sampling_rate) for signal in lead_signals]
             lfcc_feats.append(lead_lfcc_feats)
-        return np.vstack(lfcc_feats)[np.newaxis, :]
+        return np.vstack(lfcc_feats)
