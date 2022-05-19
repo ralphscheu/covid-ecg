@@ -14,6 +14,12 @@ import biosppy.signals.ecg as ecg
 #              FEATURE EXTRACTION HELPERS                #
 ##########################################################
 
+def get_heart_rate_features(rpeak_locs, sampling_rate):
+    hr_idx, hr = biosppy.signals.tools.get_heart_rate(
+        beats=rpeaks, sampling_rate=sampling_rate, smooth=True, size=3
+    )
+    return hr.mean(), hr.std()
+
 def compute_rr_intervals(rpeaks:list) -> np.ndarray:
     if len(rpeaks) < 2:
         return []  # abort
@@ -38,7 +44,7 @@ def compute_pr_intervals(p_onsets:list, q_onsets:list):
     for _p_onset, _q_onset in zip(p_onsets, q_onsets):
         pr_intervals.append(_q_onset - _p_onset)
     return np.array(pr_intervals)
-    
+
 def get_rpeaks_locations(signal, sampling_rate):
     (rpeaks_locations,) = ecg.hamilton_segmenter(signal=signal, sampling_rate=sampling_rate)
     # correct R-peak locations
@@ -124,15 +130,15 @@ def get_interval_features(signal, sampling_rate):
 class EcgPeaksFeatsExtractor(BaseEstimator, TransformerMixin):
     def __init__(self, sampling_rate=500):
         self.sampling_rate = sampling_rate
-    
+
     def fit(self, x, y=None):
         return self
-    
+
     def transform(self, x):
         peaks_feats = [get_peaks_features(signal, sampling_rate=self.sampling_rate) for signal in x]
         return np.array(peaks_feats)
-    
-    
+
+
 class EcgIntervalFeatsExtractor(BaseEstimator, TransformerMixin):
     def __init__(self, sampling_rate=500):
         self.sampling_rate = sampling_rate
