@@ -23,7 +23,7 @@ def load_runs(runs_list, root_dir, min_length=5000, max_length=5000):
     
     signals, targets = [], []
     for i in range(len(runs_list.index)):        
-        signal_path = os.path.join(root_dir, runs_list.iloc[i]['run_id'] + '.csv')
+        signal_path = os.path.join(root_dir, runs_list.iloc[i]['recording'] + '.csv')
         signal = load_signal(signal_path)
         signals.append(signal)
         targets.append(runs_list.iloc[i]['pat_group'])

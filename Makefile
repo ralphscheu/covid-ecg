@@ -63,25 +63,22 @@ test_environment:
 ## Make Dataset
 data: 
 	# Extract runs
-	rm -rf data/interim/ecg_runs
-	rm -rf data/interim/ecg_runs_covid
-	mkdir data/interim/ecg_runs_covid
-	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix covid --patients-list data/raw/patients_covid.csv data/raw/ecg_export_covid data/interim/ecg_runs_covid
-# $(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix POSTCOVID --patients-list data/raw/patients_postcovid.csv data/raw/ecg_export_postcovid data/interim/ecg_runs_postcovid
-	rm -rf data/interim/ecg_runs_ctrl
-	mkdir data/interim/ecg_runs_ctrl
-	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix ctrl --patients-list data/raw/patients_ctrl.csv data/raw/ecg_export_ctrl data/interim/ecg_runs_ctrl
+	rm -rf data/interim/recordings_covid
+	mkdir data/interim/recordings_covid
+	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix covid --patients-list data/raw/patients_covid.csv data/raw/ecg_export_covid data/interim/recordings_covid
+	rm -rf data/interim/recordings_ctrl
+	mkdir data/interim/recordings_ctrl
+	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix ctrl --patients-list data/raw/patients_ctrl.csv data/raw/ecg_export_ctrl data/interim/recordings_ctrl
 
 	# merge ecg run directories
-	rm -rf data/interim/ecg_runs
-	mkdir data/interim/ecg_runs
-	ln -s $(shell pwd)/data/interim/ecg_runs_covid/* $(shell pwd)/data/interim/ecg_runs/
-	ln -s $(shell pwd)/data/interim/ecg_runs_ctrl/* $(shell pwd)/data/interim/ecg_runs/
+	rm -rf data/interim/recordings
+	mkdir data/interim/recordings
+	ln -s $(shell pwd)/data/interim/recordings_covid/* $(shell pwd)/data/interim/recordings/
+	ln -s $(shell pwd)/data/interim/recordings_ctrl/* $(shell pwd)/data/interim/recordings/
 
 	# merge ecg run info csv files
-	cp data/interim/ecg_runs_covid.csv data/interim/ecg_runs.csv
-# tail -n +2 data/interim/ecg_runs_POSTCOVID.csv >> data/interim/ecg_runs.csv
-	tail -n +2 data/interim/ecg_runs_ctrl.csv >> data/interim/ecg_runs.csv
+	cp data/interim/recordings_covid.csv data/interim/recordings.csv
+	tail -n +2 data/interim/recordings_ctrl.csv >> data/interim/recordings.csv
 
 
 ## Generate medical measurement features (Peaks, Intervals)

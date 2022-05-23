@@ -38,7 +38,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
 
     patients_list = pd.read_csv(patients_list, sep=';')
 
-    ecg_runs = pd.DataFrame(columns=['run_id', 'pat_id', 'pat_group', 'ecg_type', 'ecg_length'])
+    recording_list = pd.DataFrame()
 
     files = list(Path(input_dir).glob('*.xml'))
     for file in tqdm(files, desc="Processing files"):
@@ -50,66 +50,68 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
         tree = ET.parse(file)
         root = tree.getroot()
 
-        for run_i, ecg_run in enumerate(root.findall('component/series', namespaces)):
+        session_start = root.find('effectiveTime/low', namespaces).get('value')
+        session_id = pat_id + "_" + session_start
 
-            effectiveTimeLow = ecg_run.find('effectiveTime/low', namespaces).get('value')
-            # effectiveTimeHigh = ecg_run.find('effectiveTime/high', namespaces).get('value')
-            sequenceSet = ecg_run.find('component/sequenceSet', namespaces)
-            leads = sequenceSet.findall('component/sequence', namespaces)[1:13]
+        # find all recordings in session
+        for recording_counter, recording in enumerate(root.findall('component/series', namespaces)):
 
-            run_df = pd.DataFrame()
+            # effectiveTimeLow = ecg_run.find('effectiveTime/low', namespaces).get('value')
+            sequenceSet = recording.find('component/sequenceSet', namespaces)
+            leads = sequenceSet.findall('component/sequence', namespaces)[1:13]  # first instance contains metadata
 
+            rec_df = pd.DataFrame()
+            # loop through leads in recording
             for lead in leads:
                 lead_name = lead.find('code', namespaces).attrib['code']
                 lead_digits = lead.find('value/digits', namespaces).text
                 lead_digits = lead_digits.split(' ')  # convert to list for saving into DataFrame column
-                run_df[lead_name] = lead_digits
+                rec_df[lead_name] = lead_digits
 
-            ecg_length = len(run_df.index)
+            # number of samples in recording
+            # -> ecg_length / sampling_rate = recording length in seconds
+            ecg_length = len(rec_df.index)
 
-            run_id = f"{pat_id}_run{effectiveTimeLow}"
-            
-            # generate DataFrame Index as milliseconds from start of run
+
+            # generate DataFrame Index as milliseconds from start of run (integer)
             ms_between_samples = int(1.0 / sampling_rate * 1000)
-            run_df.index = pd.RangeIndex(0, ms_between_samples * len(run_df.index), ms_between_samples)
+            rec_df.index = pd.RangeIndex(0, ms_between_samples * len(rec_df.index), ms_between_samples)
 
             # save ECG data
-            run_df.to_csv(f"{output_dir}/{run_id}.csv", index=True)
+            recording_id = f"{session_id}_rec{recording_counter}"
+            rec_df.to_csv(f"{output_dir}/{recording_id}.csv", index=True)
             
-            # calculate patient age
+            # get patient information
             patients_list['birth_date'] = pd.to_datetime(patients_list['birth_date'], format='%Y-%m-%d')
             patients_list['diagnose_date'] = pd.to_datetime(patients_list['diagnose_date'], format='%Y-%m-%d')
             patients_list['age'] = (patients_list['diagnose_date'] - patients_list['birth_date']).astype('<m8[Y]')
-
             try:
                 pat_info = patients_list.loc[ patients_list['nr'].astype(str) == file_name_split[0]].iloc[0]
             except:
                 logger.warn(f"Could not find patient {file_name_split[0]} in list!")
-                # TODO: why are there two patients missing?
+                # TODO: why are there patients missing?
                 continue
 
-            ecg_runs = pd.concat(
+            recording_list = pd.concat(
                 [
-                    ecg_runs,
+                    recording_list,
                     pd.DataFrame({
-                        'run_id': run_id,
-                        'run_timestamp': effectiveTimeLow,
+                        'recording': recording_id,
+                        'session': session_id,
                         'pat_id': pat_id,
                         'pat_group': prefix,
                         'pat_gender': pat_info['gender'],
                         'pat_age': pat_info['age'],
-                        'pat_diagnose': pat_info['diagnose'],
-                        'pat_diagnose_date': pat_info['diagnose_date'],
+                        'pat_diagnosis': pat_info['diagnose'],
+                        'pat_diagnosis_date': pat_info['diagnose_date'],
                         'ecg_type': ecg_type,
                         'ecg_length': ecg_length
-                    }, index=[run_id])
+                    }, index=[recording_id])
                 ]
             )
 
     # save ECG runs metadata
-    ecg_runs.to_csv(f'data/interim/ecg_runs_{prefix}.csv', sep=';', index=False)
-
-
+    recording_list.to_csv(f'data/interim/ecg_recordings_{prefix}.csv', sep=';', index=False)
     logger.info(f'Done. Saved txt files to {output_dir}')
 
 
