@@ -85,12 +85,8 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
             patients_list['birth_date'] = pd.to_datetime(patients_list['birth_date'], format='%Y-%m-%d')
             patients_list['diagnose_date'] = pd.to_datetime(patients_list['diagnose_date'], format='%Y-%m-%d')
             patients_list['age'] = (patients_list['diagnose_date'] - patients_list['birth_date']).astype('<m8[Y]')
-            try:
-                pat_info = patients_list.loc[ patients_list['nr'].astype(str) == file_name_split[0]].iloc[0]
-            except:
-                logger.warn(f"Could not find patient {file_name_split[0]} in list!")
-                # TODO: why are there patients missing?
-                continue
+            pat_info = patients_list.loc[ patients_list['nr'].astype(str) == file_name_split[0]].iloc[0]
+
 
             recording_list = pd.concat(
                 [
@@ -111,7 +107,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
             )
 
     # save ECG runs metadata
-    recording_list.to_csv(f'data/interim/ecg_recordings_{prefix}.csv', sep=';', index=False)
+    recording_list.to_csv(f'data/interim/recordings_{prefix}.csv', sep=';', index=False)
     logger.info(f'Done. Saved txt files to {output_dir}')
 
 
