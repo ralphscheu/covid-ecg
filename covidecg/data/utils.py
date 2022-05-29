@@ -108,5 +108,5 @@ class EcgSignalCleaner(BaseEstimator, TransformerMixin):
             lead_signals = x[:, lead_i]
             cleaned_lead_signal = [nk.ecg_clean(signal, method='biosppy', sampling_rate=self.sampling_rate) for signal in lead_signals]
             cleaned_signals.append(cleaned_lead_signal)
-        cleaned_signals = np.vstack(cleaned_signals)  # to numpy array
-        return cleaned_signals[:, np.newaxis].astype(np.float32)
+        cleaned_signals = np.stack(cleaned_signals, axis=1)  # to numpy array
+        return cleaned_signals.astype(np.float32)
