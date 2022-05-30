@@ -67,6 +67,12 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
                 lead_digits = lead.find('value/digits', namespaces).text
                 lead_digits = lead_digits.split(' ')  # convert to list for saving into DataFrame column
                 rec_df[lead_name] = lead_digits
+                rec_df[lead_name] = rec_df[lead_name].astype(float)
+                
+            max_amplitude = rec_df['MDC_ECG_LEAD_II'].max() - rec_df['MDC_ECG_LEAD_II'].min()
+            if max_amplitude > 5000 or max_amplitude < 10:
+                logging.warn(f"Max amplitude of {max_amplitude} in Lead II -> Sample dismissed!")
+                continue
 
             # number of samples in recording
             # -> ecg_length / sampling_rate = recording length in seconds
