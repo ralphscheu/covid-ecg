@@ -76,10 +76,9 @@ target/
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
 
-# exclude data from source control by default
 /data/
-
 /notebooks/
+/mlruns/
 
 # Mac OS-specific storage files
 .DS_Store

@@ -65,10 +65,17 @@ data:
 	# Extract runs
 	rm -rf data/interim/recordings_covid
 	mkdir data/interim/recordings_covid
-	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix covid --patients-list data/raw/patients_covid.csv data/raw/ecg_export_covid data/interim/recordings_covid
+	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
+		--prefix covid \
+		--patients-list data/raw/patients_covid.csv \
+		data/raw/ecg_export_covid data/interim/recordings_covid
+	
 	rm -rf data/interim/recordings_ctrl
 	mkdir data/interim/recordings_ctrl
-	$(PYTHON_INTERPRETER) covidecg/data/extract_ecg_runs.py --prefix ctrl --patients-list data/raw/patients_ctrl.csv data/raw/ecg_export_ctrl data/interim/recordings_ctrl
+	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
+	--prefix ctrl \
+	--patients-list data/raw/patients_ctrl.csv \
+	data/raw/ecg_export_ctrl data/interim/recordings_ctrl
 
 	# merge ecg run directories
 	rm -rf data/interim/recordings
@@ -84,15 +91,8 @@ data:
 ## Generate medical measurement features (Peaks, Intervals)
 lfcc:
 	# MFCC features over complete runs
-	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_covid data/interim/ecg_runs_mfcc_covid
-# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_postcovid data/interim/ecg_runs_mfcc_postcovid
-	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/ecg_runs_ctrl data/interim/ecg_runs_mfcc_ctrl
-
-
-## Generate spectral features (Linear Frequency Cepstral Coefficients)
-medfeats:
-	# ECG-specific features (Peaks, Intervals, Amplitudes)
-	${PYTHON_INTERPRETER} covidecg/features/make_ecg_feats.py data/interim/ecg_runs_covid data/interim/ecg_runs_feats_covid
+	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/recordings_covid data/interim/ecg_runs_mfcc_covid
+	# ${PYTHON_INTERPRETER} covidecg/features/make_mfcc.py data/interim/recordings_ctrl data/interim/ecg_runs_mfcc_ctrl
 
 
 ## Generate features
@@ -100,7 +100,11 @@ features: features-medical features-lfcc
 
 
 train:
-	${PYTHON_INTERPRETER} covidecg/models/train.py
+#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/01-covid_ctrl-recordings-plain_signal-svmlinear.yaml
+#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/01-covid_ctrl-recordings-plain_signal-mlp.yaml
+
+#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/02-covid_ctrl-recordings-peaks-svmlinear.yaml
+	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/02-covid_ctrl-recordings-peaks-mlp.yaml
 
 
 #################################################################################

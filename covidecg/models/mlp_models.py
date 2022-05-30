@@ -14,15 +14,13 @@ class MLP(nn.Module):
             nn.Flatten(),
             nn.Linear(input_size, hidden_size), 
             nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size), 
+            nn.Linear(hidden_size, hidden_size),
             nn.ReLU(), 
             nn.Linear(hidden_size, hidden_size), 
             nn.ReLU(), 
-            nn.Linear(hidden_size, hidden_size), 
+            nn.Linear(hidden_size, hidden_size // 2),
             nn.ReLU(), 
-            nn.Linear(hidden_size, hidden_size), 
-            nn.ReLU(), 
-            nn.Linear(hidden_size, 2),
+            nn.Linear(hidden_size // 2, 2),
             nn.Softmax(dim=-1)
         )
 

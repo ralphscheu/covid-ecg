@@ -55,10 +55,6 @@ def get_rpeaks_locations(signal, sampling_rate):
     return rpeaks_locations
 
 def get_peaks_locations(signal, sampling_rate, delineate_method='dwt', delineate_check=False):
-    print(signal.max(axis=1) - signal.min(axis=1))
-    print(signal)
-    
-    
     peaks_locations = nk.ecg_delineate(signal, sampling_rate=sampling_rate, method=delineate_method, check=delineate_check)[1]
 
     peaks_locations['ECG_R_Peaks'] = get_rpeaks_locations(signal, sampling_rate)
@@ -84,11 +80,7 @@ def get_peaks_features(signal, sampling_rate):
         list: Peaks features (mean+std signal amplitude at Q, R, S, T peaks)
     """
     peaks_feats = []
-    try:
-        peaks_locations = get_peaks_locations(signal, sampling_rate)
-    except:
-        print("Skipping!")
-        return np.zeros(8)
+    peaks_locations = get_peaks_locations(signal, sampling_rate)
     
     # R Peaks
     rpeaks_y = signal[peaks_locations['ECG_R_Peaks']]
@@ -101,16 +93,18 @@ def get_peaks_features(signal, sampling_rate):
     peaks_feats.append(qpeaks_y.std())
     
     # S Peaks
+    # remove nan entries
+    peaks_locations['ECG_S_Peaks'] = [v for v in peaks_locations['ECG_S_Peaks'] if v == v]
     speaks_y = signal[peaks_locations['ECG_S_Peaks']]
     peaks_feats.append(speaks_y.mean())
     peaks_feats.append(speaks_y.std())
     
     # T Peaks
+    # remove nan entries
+    peaks_locations['ECG_T_Peaks'] = [v for v in peaks_locations['ECG_T_Peaks'] if v == v]
     tpeaks_y = signal[peaks_locations['ECG_T_Peaks']]
     peaks_feats.append(tpeaks_y.mean())
     peaks_feats.append(tpeaks_y.std())
-    
-    print("peaks_feats:", peaks_feats)
 
     return peaks_feats
 
@@ -158,7 +152,6 @@ class EcgPeaksFeatsExtractor(BaseEstimator, TransformerMixin):
             lead_signals = x[:, lead_i]
             lead_peaks_feats = [get_peaks_features(signal, sampling_rate=self.sampling_rate) for signal in lead_signals]
             peaks_feats.append(lead_peaks_feats)
-        print(np.vstack(peaks_feats))
         return np.vstack(peaks_feats)
 
 
