@@ -11,7 +11,6 @@ import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
 import yaml
-np.random.seed(0)
 import covidecg.data.utils as data_utils
 import covidecg.features.utils as feature_utils
 import sklearn.preprocessing
@@ -30,6 +29,8 @@ import sklearn.svm
 import torch.optim
 from typing import Tuple
 import copy as cp
+
+np.random.seed(0)
 
 
 def cross_val_predict(model, kfold : KFold, X : np.array, y : np.array) -> Tuple[np.array, np.array, np.array]:
@@ -71,7 +72,7 @@ def cross_val_predict(model, kfold : KFold, X : np.array, y : np.array) -> Tuple
 @click.option('--config-file', required=True, type=click.Path(exists=True))
 def main(config_file):
     conf = yaml.safe_load(open(config_file))
-    print(conf, "\n")
+    logging.info(f"Experiment configuration: {conf}")
     exp_name = Path(config_file).stem
     
     experiment = mlflow.set_experiment(exp_name)
@@ -101,6 +102,19 @@ def main(config_file):
                                     data_utils.EcgSignalCleaner(),
                                     data_utils.EcgLeadSelector(conf['ecg_leads']),
                                     feature_utils.EcgPeaksFeatsExtractor(sampling_rate=int(os.environ['SAMPLING_RATE'])))
+        elif conf['features'] == 'intervals':
+            preprocessing = sklearn.pipeline.make_pipeline(
+                                    data_utils.EcgSignalCleaner(),
+                                    data_utils.EcgLeadSelector(conf['ecg_leads']),
+                                    feature_utils.EcgIntervalsFeatsExtractor(sampling_rate=int(os.environ['SAMPLING_RATE'])))
+        elif conf['features'] == 'peaks_intervals':
+            preprocessing = sklearn.pipeline.make_pipeline(
+                                    data_utils.EcgSignalCleaner(),
+                                    data_utils.EcgLeadSelector(conf['ecg_leads']),
+                                    sklearn.pipeline.make_union(
+                                        feature_utils.EcgPeaksFeatsExtractor(sampling_rate=int(os.environ['SAMPLING_RATE']))),
+                                        feature_utils.EcgIntervalsFeatsExtractor(sampling_rate=int(os.environ['SAMPLING_RATE'])))
+                                    
         ###
         
         logging.info("Building model...")
@@ -154,11 +168,16 @@ def main(config_file):
             )
         ###
 
+
+        logging.info("Preprocessing data...")
+        X = preprocessing.fit_transform(X)
+        X = X.astype(np.float32)
+        logging.info(f"Shapes after preprocessing - X: {X.shape} - y: {len(y)}")
+        
         logging.info("Fitting and evaluating model...")
-        pipe = sklearn.pipeline.make_pipeline(preprocessing, clf)
         mlflow.log_param('num_cv_folds', int(conf['num_cv_folds']))
         kfold_ = StratifiedKFold(n_splits=int(conf['num_cv_folds']), shuffle=True)
-        y_true, y_pred, y_pred_proba = cross_val_predict(pipe, kfold_, X, y)
+        y_true, y_pred, y_pred_proba = cross_val_predict(clf, kfold_, X, y)
         ###
         
         logging.info("Computing scores and creating figures...")
@@ -187,7 +206,7 @@ if __name__ == '__main__':
     # find .env automagically by walking up directories until it's found, then
     # load up the .env entries as environment variables
     load_dotenv(find_dotenv())
-    
+
     # timestamp = datetime.utcnow().strftime('%Y%m%dT%H%S.%f')[:-3]
     # output_dir = os.path.join(os.environ['PROJECT_ROOT'], 'exp_results', f"{timestamp}__{exp_name}")
 
