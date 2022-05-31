@@ -55,6 +55,7 @@ def get_rpeaks_locations(signal, sampling_rate):
     return rpeaks_locations
 
 def get_peaks_locations(signal, sampling_rate, delineate_method='dwt', delineate_check=False):
+    print(signal.shape, signal.max() - signal.min())
     peaks_locations = nk.ecg_delineate(signal, sampling_rate=sampling_rate, method=delineate_method, check=delineate_check)[1]
 
     peaks_locations['ECG_R_Peaks'] = get_rpeaks_locations(signal, sampling_rate)
@@ -108,16 +109,15 @@ def get_peaks_features(signal, sampling_rate):
 
     return peaks_feats
 
-def get_interval_features(signal, sampling_rate):
+def get_intervals_features(signal, sampling_rate):
     interval_feats = []
     peaks_locations = get_peaks_locations(signal, sampling_rate)
     
     # RR Intervals
     rpeaks_locations = nk.ecg_peaks(signal, sampling_rate=sampling_rate)[1]['ECG_R_Peaks']
-    rr_intervals = compute_rr_intervals(peaks_locations['ECG_R_Peaks'])
+    rr_intervals = compute_rr_intervals(peaks_locations['ECG_R_Peaks'], sampling_rate=sampling_rate)
     interval_feats.append(rr_intervals.mean())
     interval_feats.append(rr_intervals.std())
-    
     
     # PR Intervals
     pr_intervals = compute_pr_intervals(peaks_locations['ECG_P_Onsets'], peaks_locations['ECG_Q_Onsets'])
@@ -132,6 +132,11 @@ def get_interval_features(signal, sampling_rate):
     qt_intervals = compute_pr_intervals(peaks_locations['ECG_Q_Onsets'], peaks_locations['ECG_T_Offsets'])
     interval_feats.append(qt_intervals.mean())
     interval_feats.append(qt_intervals.std())
+    
+    interval_feats = np.nan_to_num(interval_feats, nan=0.0)
+    # interval_feats[np.isnan(interval_feats)] = 0  # set nan elements to zero
+    
+    print("intervals_feats:", interval_feats)
     
     return interval_feats
 
@@ -152,10 +157,11 @@ class EcgPeaksFeatsExtractor(BaseEstimator, TransformerMixin):
             lead_signals = x[:, lead_i]
             lead_peaks_feats = [get_peaks_features(signal, sampling_rate=self.sampling_rate) for signal in lead_signals]
             peaks_feats.append(lead_peaks_feats)
-        return np.vstack(peaks_feats)
+        peaks_feats = np.vstack(peaks_feats)
+        return peaks_feats
 
 
-class EcgIntervalFeatsExtractor(BaseEstimator, TransformerMixin):
+class EcgIntervalsFeatsExtractor(BaseEstimator, TransformerMixin):
     def __init__(self, sampling_rate=500):
         self.sampling_rate = sampling_rate
     
@@ -163,8 +169,13 @@ class EcgIntervalFeatsExtractor(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, x):
-        interval_feats = [get_interval_features(signal, sampling_rate=self.sampling_rate) for signal in x]
-        return np.array(interval_feats)
+        intervals_feats = []
+        for lead_i in range(x.shape[1]):
+            lead_signals = x[:, lead_i]
+            lead_intervals_feats = [get_intervals_features(signal.squeeze(), sampling_rate=self.sampling_rate) for signal in x]
+            intervals_feats.append(lead_intervals_feats)
+        intervals_feats = np.vstack(intervals_feats)
+        return intervals_feats
 
 
 class EcgLfccFeatsExtractor(BaseEstimator, TransformerMixin):
@@ -180,4 +191,5 @@ class EcgLfccFeatsExtractor(BaseEstimator, TransformerMixin):
             lead_signals = x[:, lead_i]
             lead_lfcc_feats = [spafe.features.lfcc.lfcc(signal, fs=self.sampling_rate) for signal in lead_signals]
             lfcc_feats.append(lead_lfcc_feats)
-        return np.vstack(lfcc_feats)
+        lfcc_feats = np.vstack(lfcc_feats)
+        return lfcc_feats

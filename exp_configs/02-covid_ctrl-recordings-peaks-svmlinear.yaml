@@ -10,4 +10,4 @@ features: peaks
 model: svm_linear
 svm_class_weight_balanced: yes
 
-num_cv_folds: 2
+num_cv_folds: 5
