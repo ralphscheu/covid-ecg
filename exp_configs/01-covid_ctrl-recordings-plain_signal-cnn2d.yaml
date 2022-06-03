@@ -1,0 +1,19 @@
+# input data
+root_dir: ./data/interim/recordings
+samples_list: ./data/interim/recordings.csv
+ecg_type: stress
+ecg_leads: all
+features: plain_signal
+flatten_leads: no
+
+# model definition
+model: cnn2d
+dense_hidden_size: 1000
+
+# hyperparams
+lr: 1e-4
+batch_size: 32
+early_stopping_max_epochs: 30
+early_stopping_patience: 10
+
+num_cv_folds: 5

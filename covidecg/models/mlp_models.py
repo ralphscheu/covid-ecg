@@ -7,7 +7,7 @@ import torch.nn as nn
     Multilayer Perceptron
 '''
 class MLP(nn.Module):
-    
+
     def __init__(self, input_size, hidden_size=100):
         super().__init__()
         self.layers = nn.Sequential(
@@ -27,3 +27,39 @@ class MLP(nn.Module):
     def forward(self, x):
         '''Forward pass'''
         return self.layers(x)
+
+
+'''
+    CNN 2D ( leads x time )
+'''
+class CNN2D(nn.Module):
+
+    def __init__(self, dense_hidden_size=1000):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Dropout(0.1),
+            
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=(1, 2), padding=(1, 0)),
+            nn.Dropout(0.1),
+            
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=(1, 2), padding=(1, 0)),
+            nn.Dropout(0.1),
+            
+            nn.Flatten(),
+            nn.LazyLinear(dense_hidden_size),  # automatically infers input shape
+            nn.Linear(dense_hidden_size, dense_hidden_size),
+            nn.Linear(dense_hidden_size, 2),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        '''Forward pass'''
+        # print("CNN input:", x.shape)
+        return self.layers(x[:, np.newaxis, :, :])
