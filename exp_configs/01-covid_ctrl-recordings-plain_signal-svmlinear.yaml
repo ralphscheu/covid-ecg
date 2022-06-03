@@ -1,7 +1,6 @@
-data:
-  root_dir: ./data/interim/recordings
-  samples_list: ./data/interim/recordings.csv
-  ecg_type: stress
+root_dir: ./data/interim/recordings
+samples_list: ./data/interim/recordings.csv
+ecg_type: stress
 ecg_leads: MDC_ECG_LEAD_II
     # - MDC_ECG_LEAD_I
     # - MDC_ECG_LEAD_II
@@ -16,6 +15,7 @@ ecg_leads: MDC_ECG_LEAD_II
     # - MDC_ECG_LEAD_V5
     # - MDC_ECG_LEAD_V6
 features: plain_signal
-model: svm_linear
+model: svm
+svm_kernel: linear
 svm_class_weight_balanced: yes
 num_cv_folds: 5
