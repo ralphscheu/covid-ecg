@@ -34,22 +34,22 @@ class MLP(nn.Module):
 '''
 class CNN2D(nn.Module):
 
-    def __init__(self, dense_hidden_size=1000):
+    def __init__(self, dense_hidden_size):
         super().__init__()
         self.layers = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=(1, 5), stride=(1, 2), padding=(0,2)),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 2)),
             nn.Dropout(0.1),
             
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(1, 5), stride=(1, 2), padding=(0, 2)),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=(1, 2), padding=(1, 0)),
+            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 2)),
             nn.Dropout(0.1),
             
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(1, 5), stride=(1, 2), padding=(0, 2)),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=(1, 2), padding=(1, 0)),
+            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 2)),
             nn.Dropout(0.1),
             
             nn.Flatten(),
@@ -63,3 +63,37 @@ class CNN2D(nn.Module):
         '''Forward pass'''
         # print("CNN input:", x.shape)
         return self.layers(x[:, np.newaxis, :, :])
+
+
+'''
+    CNN 1D ( leads as channels )
+'''
+class CNN1D(nn.Module):
+
+    def __init__(self, dense_hidden_size):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Conv1d(in_channels=12, out_channels=24, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=3, stride=3),
+            
+            nn.Conv1d(in_channels=24, out_channels=48, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=3, stride=3),
+            
+            nn.Conv1d(in_channels=48, out_channels=96, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=3, stride=3),
+            nn.Dropout(0.5),
+            
+            nn.Flatten(),
+            nn.LazyLinear(dense_hidden_size),  # automatically infers input shape
+            nn.LazyLinear(dense_hidden_size),
+            nn.LazyLinear(2),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        '''Forward pass'''
+        # print("CNN input:", x.shape)
+        return self.layers(x)
