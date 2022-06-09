@@ -73,27 +73,26 @@ class CNN1D(nn.Module):
     def __init__(self, dense_hidden_size):
         super().__init__()
         self.layers = nn.Sequential(
-            nn.Conv1d(in_channels=12, out_channels=24, kernel_size=3, stride=1, padding=1),
+            nn.Conv1d(in_channels=12, out_channels=24, kernel_size=10, stride=1, padding=4),
             nn.ReLU(),
-            nn.MaxPool1d(kernel_size=3, stride=3),
+            nn.MaxPool1d(kernel_size=5, stride=3),
             
-            nn.Conv1d(in_channels=24, out_channels=48, kernel_size=3, stride=1, padding=1),
+            nn.Conv1d(in_channels=24, out_channels=48, kernel_size=10, stride=1, padding=4),
             nn.ReLU(),
-            nn.MaxPool1d(kernel_size=3, stride=3),
+            nn.MaxPool1d(kernel_size=5, stride=3),
             
-            nn.Conv1d(in_channels=48, out_channels=96, kernel_size=3, stride=1, padding=1),
+            nn.Conv1d(in_channels=48, out_channels=96, kernel_size=10, stride=1, padding=4),
             nn.ReLU(),
-            nn.MaxPool1d(kernel_size=3, stride=3),
+            nn.MaxPool1d(kernel_size=5, stride=3),
             nn.Dropout(0.5),
             
             nn.Flatten(),
             nn.LazyLinear(dense_hidden_size),  # automatically infers input shape
-            nn.LazyLinear(dense_hidden_size),
+            nn.LazyLinear(dense_hidden_size // 2),
             nn.LazyLinear(2),
             nn.Softmax(dim=-1)
         )
 
     def forward(self, x):
         '''Forward pass'''
-        # print("CNN input:", x.shape)
         return self.layers(x)

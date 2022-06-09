@@ -1,0 +1,19 @@
+# input data
+root_dir: ./data/interim/recordings
+samples_list: ./data/interim/recordings.csv
+ecg_type: stress
+ecg_leads: MDC_ECG_LEAD_II
+features: plain_signal
+flatten_leads: yes
+
+# model definition
+model: mlp
+grid_search:
+  module__hidden_size: [64, 128, 256, 512, 1024, 2048]
+  lr: [0.01, 0.001, 0.0005, 0.0001, 0.00005, 0.00001]
+  batch_size: [32, 64, 128]
+
+early_stopping_max_epochs: 30
+early_stopping_patience: 10
+
+num_cv_folds: 5

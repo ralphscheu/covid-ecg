@@ -1,4 +1,3 @@
-# input data
 root_dir: ./data/interim/recordings
 samples_list: ./data/interim/recordings.csv
 ecg_type: stress
@@ -16,15 +15,7 @@ ecg_leads: MDC_ECG_LEAD_II
     # - MDC_ECG_LEAD_V5
     # - MDC_ECG_LEAD_V6
 features: plain_signal
-
-# model definition
-model: mlp
-hidden_size: 1000
-
-# hyperparams
-lr: 1e-4
-batch_size: 32
-early_stopping_max_epochs: 10
-early_stopping_patience: 3
-
+model: svm
+svm_kernel: [linear, poly, rbf]
+svm_class_weight_balanced: yes
 num_cv_folds: 5

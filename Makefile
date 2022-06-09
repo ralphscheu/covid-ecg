@@ -98,17 +98,22 @@ lfcc:
 ## Generate features
 features: features-medical features-lfcc
 
+train_mlp:
+	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_ctrl_classification/01-covid_ctrl-recordings-plain_signal-mlp.yaml
+
 
 train_cnn2d:
-	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/01-covid_ctrl-recordings-plain_signal-cnn2d.yaml
+	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_ctrl_classification/01-covid_ctrl-recordings-plain_signal-cnn2d.yaml
+
+train_cnn1d:
+	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_ctrl_classification/01-covid_ctrl-recordings-plain_signal-cnn1d.yaml
 
 
-train: train_cnn2d
+train: train_mlp train_cnn2d train_cnn1d
 #	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/01-covid_ctrl-recordings-plain_signal-svmlinear.yaml
 #	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/01-covid_ctrl-recordings-plain_signal-mlp.yaml
 
 #	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/02-covid_ctrl-recordings-peaks-svmlinear.yaml
-#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/02-covid_ctrl-recordings-peaks-mlp.yaml
 
 #	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/03-covid_ctrl-recordings-intervals-svmlinear.yaml
 #	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/03-covid_ctrl-recordings-intervals-mlp.yaml
