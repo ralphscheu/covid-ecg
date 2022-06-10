@@ -95,4 +95,5 @@ class CNN1D(nn.Module):
 
     def forward(self, x):
         '''Forward pass'''
+        x = x.reshape(-1, 12, 5000)  # reshape for CNN input
         return self.layers(x)

@@ -3,10 +3,7 @@ import click
 import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
-import pandas as pd
 import numpy as np
-import warnings
-warnings.filterwarnings('ignore')
 import yaml
 import covidecg.data.utils as data_utils
 import covidecg.features.utils as feature_utils
@@ -14,16 +11,13 @@ from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder
 import skorch
-from datetime import datetime
+from skorch.callbacks import EpochScoring, EarlyStopping
 from covidecg.models.mlp_models import MLP, CNN2D, CNN1D
 import mlflow
 import torch.nn as nn
 import sklearn.metrics
-from skorch.callbacks import EpochScoring, EarlyStopping
 import sklearn.svm
 import torch.optim
-from typing import Tuple
-import copy as cp
 import torch
 from io import StringIO
 from imblearn.under_sampling import RandomUnderSampler
@@ -32,6 +26,10 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import random
 import torchinfo
+# from dask.distributed import Client
+# from joblib import parallel_backend
+
+# client = Client('127.0.0.1:8786')
 
 # set seeds for reproducibility
 random.seed(0)
@@ -74,21 +72,17 @@ def load_dataset(samples_list, root_dir, ecg_type):
         X, y = data_utils.load_rest_ecg_runs(samples_list, root_dir)
     else:
         raise Exception(f"Invalid ecg_type {ecg_type} in experiment configuration! (stress|rest)")
+    
     label_encoder = LabelEncoder()
     y = label_encoder.fit_transform(y).astype(np.int64)
     
-    # shuffle X and y
-    # assert len(X) == len(y)
-    # p = np.random.permutation(len(X))
-    # X, y = X[p], y[p]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True, stratify=y)
     
-    X_train, y_train, X_test, y_test = train_test_split(X, y, test_size=0.2, shuffle=True, stratify=y)
-    logging.info(f"")
-    
-    return X_train, y_train, X_test, y_test, label_encoder
+    return X_train, X_test, y_train, y_test, label_encoder
 
+import imblearn.pipeline
 
-def build_model(conf:dict, X:np.ndarray, y:np.ndarray, class_weight=None):
+def build_model(conf:dict, X:np.ndarray, y:np.ndarray, class_weight=None) -> imblearn.pipeline.Pipeline:
     """ Define model and optimizer according to experiment configuration """
     
     if conf['model'] == 'svm':
@@ -145,11 +139,19 @@ def build_model(conf:dict, X:np.ndarray, y:np.ndarray, class_weight=None):
             max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
         )
 
-    return clf
+    if conf['imbalance_mitigation'] == 'smote':
+        pipe = imblearn.pipeline.Pipeline([('smote', SMOTE()), ('clf', clf)])
+    else:
+        pipe = imblearn.pipeline.Pipeline([('clf', clf)])
+
+    return pipe
 
 
-def evaluate_experiment(y_true, y_pred, y_encoder, best_estimator, X_test):
+def evaluate_experiment(X_test, y_true, y_encoder, gs):
     """ Compute scores, create figures and log all metrics to MLFlow """
+    
+    y_pred = gs.predict(X_test)
+    
     accuracy_score = sklearn.metrics.accuracy_score(y_true, y_pred)
     roc_auc_score = sklearn.metrics.roc_auc_score(y_true, y_pred)
     f1_score = sklearn.metrics.f1_score(y_true, y_pred)
@@ -158,7 +160,7 @@ def evaluate_experiment(y_true, y_pred, y_encoder, best_estimator, X_test):
     
     conf_matrix_figure = sklearn.metrics.ConfusionMatrixDisplay.from_predictions(y_true, y_pred, display_labels=y_encoder.classes_, cmap='Blues', normalize='true').figure_
     
-    roc_auc_curve_figure = sklearn.metrics.RocCurveDisplay.from_estimator(best_estimator, X_test, y_true).figure_
+    roc_auc_curve_figure = sklearn.metrics.RocCurveDisplay.from_estimator(gs, X_test, y_true).figure_
     
     logging.info("Logging metrics to MLFlow...")
     # # mlflow.log_metrics({'accuracy': accuracy_score, 'roc_auc': roc_auc_score, 'f1': f1_score, 'precision': precision_score, 'recall': recall_score})
@@ -166,10 +168,10 @@ def evaluate_experiment(y_true, y_pred, y_encoder, best_estimator, X_test):
     mlflow.log_figure(roc_auc_curve_figure, 'roc_auc_curve.png')
     
     loss_fig = plt.figure()
-    plt.plot(best_estimator.history[:, 'train_loss'], label='train_loss')
-    plt.plot(best_estimator.history[:, 'valid_loss'], label='valid_loss')
+    plt.plot(gs.best_estimator_.steps[-1][1].history[:, 'train_loss'], label='train_loss')
+    plt.plot(gs.best_estimator_.steps[-1][1].history[:, 'valid_loss'], label='valid_loss')
     plt.legend()
-    mlflow.log_figure(loss_fig, 'loss.pdf')
+    mlflow.log_figure(loss_fig, 'loss.png')
 
 
 ###############################################
@@ -185,86 +187,71 @@ def run_experiment(config_file):
     logging.info("Loading dataset...")
     X_train, X_test, y_train, y_test, y_encoder = load_dataset(samples_list=conf['samples_list'], root_dir=conf['root_dir'], ecg_type=conf['ecg_type'])
 
+    ###
 
-    logging.info("Building pre-processing pipeline...")
     preprocessing = build_preprocessing_pipeline(
         conf=conf, 
         sampling_rate=int(os.environ['SAMPLING_RATE']))
-    logging.info(f"Preprocessing steps: {preprocessing.named_steps}")
-
-
     logging.info("Preprocessing data...")
+    logging.info(f"Preprocessing steps: {preprocessing.named_steps}")
     X_train = preprocessing.fit_transform(X_train).astype(np.float32)
     X_test = preprocessing.fit_transform(X_test).astype(np.float32)
     logging.info(f"Shapes after preprocessing - X_train: {X_train.shape} - X_test: {X_test.shape}")
 
-
-    logging.info(f"Shape before class imbalance mitigation: {X_train.shape}")
-    logging.info(f"Class distribution before class imbalance mitigation: train {Counter(y_train)} | test {Counter(y_test)}")
-    logging.info(f"Applying {conf['imbalance_mitigation']} for mitigating class imbalance...")
+    ###
     
-    class_weight = None
-    if conf['imbalance_mitigation'] == 'criterion_weights':
-        class_weight = torch.Tensor(sklearn.utils.class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y), y=y))
-        
-    elif conf['imbalance_mitigation'] == 'random_undersampling':
-        shape_original = X_train.shape
-        X_train, y_train = RandomUnderSampler().fit_resample(X_train.reshape(shape_original[0], -1), y_train)
-        X_train = X_train.reshape(-1, *shape_original[1:])
-        
-    elif conf['imbalance_mitigation'] == 'smote':
-        shape_original = X_train.shape
-        X_train, y_train = SMOTE().fit_resample(X_train.reshape(shape_original[0], -1), y_train)
-        X_train = X_train.reshape(-1, *shape_original[1:])
-        
-    else:
-        raise f"Invalid option '{conf['imbalance_mitigation']}' for class imbalance mitigation"
-    
-    logging.info(f"Shape after mitigation: {X_train.shape}")
-    logging.info(f"Class distribution after mitigation: train {Counter(y_train)} | test {Counter(y_test)}")
+    logging.info(f"Class distribution in training set: {Counter(y_train)}")
 
+    # class_weight = None
+    # if conf['imbalance_mitigation'] == 'criterion_weights':
+    #     class_weight = torch.Tensor(sklearn.utils.class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train))
+    # elif conf['imbalance_mitigation'] == 'random_undersampling':
+    #     shape_original = X_train.shape
+    #     X_train, y_train = RandomUnderSampler(random_state=0).fit_resample(X_train.reshape(shape_original[0], -1), y_train)
+    #     X_train = X_train.reshape(-1, *shape_original[1:])
+    # elif conf['imbalance_mitigation'] == 'smote':
+    #     shape_original = X_train.shape
+    #     X_train, y_train = SMOTE().fit_resample(X_train.reshape(shape_original[0], -1), y_train)
+    #     X_train = X_train.reshape(-1, *shape_original[1:])
+    # else:
+    #     raise f"Invalid option '{conf['imbalance_mitigation']}' for class imbalance mitigation"
 
     mlflow.sklearn.autolog()
     experiment = mlflow.set_experiment(Path(config_file).stem)
-    with mlflow.start_run(experiment_id=experiment.experiment_id):
-        
-        with open(config_file) as _config_file_handle:
-            mlflow.log_text(_config_file_handle.read(), 'experiment_config.yaml')
+    with mlflow.start_run(experiment_id=experiment.experiment_id, 
+                          tags={
+                              'features': conf['features'], 
+                              'imbalance_mitigation': conf['imbalance_mitigation'], 
+                              'ecg_type': conf['ecg_type'],
+                              'ecg_leads': conf['ecg_leads'],
+                              'model': conf['model']}):
 
+        with open(config_file) as f:
+            mlflow.log_text(f.read(), 'experiment_config.yaml')
 
         logging.info("Building model...")
-        clf = build_model(conf, X_train, y_train, class_weight=class_weight)
-
+        model = build_model(conf, X_train, y_train)
 
         logging.info("Fitting and evaluating model...")
-        gs = sklearn.model_selection.GridSearchCV(
-            clf, 
-            conf['grid_search'], 
+        gs = sklearn.model_selection.GridSearchCV(model, conf['grid_search'], 
             scoring=sklearn.metrics.get_scorer('roc_auc'), 
-            cv=int(conf['num_cv_folds']), 
-            refit=True, 
-            error_score='raise', 
-            verbose=4)
+            cv=int(conf['num_cv_folds']), refit=True, error_score='raise', verbose=4)
+
+        # with parallel_backend('dask'):
         gs.fit(X_train, y_train)
-        
+
         logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
         logging.info(f"GridSearchCV - Best Params: {gs.best_params_}")
-        
-        logging.info("Predicting best model as determined by Grid Search")
-        # predict on X_test using model trained on all of X_train using best hyperparameters as determined by GridSearchCV
-        y_pred = gs.predict(X_test)
 
-        logging.info("Computing scores and creating figures...")
-        evaluate_experiment(y_test, y_pred, y_encoder, gs.best_estimator_, X_test)
-        
-        
+        logging.info("Evaluating best model as determined by Grid Search...")
+        evaluate_experiment(X_test, y_test, y_encoder, gs)
+
         # Store log in MLFlow
         mlflow.log_text(LOG_STREAM.getvalue(), 'train_evaluate.log')
-        
+
         # Store model summary in MLFlow
-        mlflow.log_text(str(torchinfo.summary(gs.best_estimator_.module, input_size=(gs.best_params_['batch_size'], *X_train.shape[1:]))), 'best_model_summary.txt')
-        
-        
+        mlflow.log_text(str(gs.best_estimator_.steps[-1][1].module_), 'model_topology.txt')
+        # mlflow.log_text(str(torchinfo.summary(gs.best_estimator_.module, input_size=(gs.best_params_['batch_size'], *X_train.shape[1:]))), 'best_model_summary.txt')
 
 
 if __name__ == '__main__':
@@ -276,7 +263,7 @@ if __name__ == '__main__':
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler(),  # log to stdout
-            logging.StreamHandler(stream=LOG_STREAM)  # log to StringIO for storing in MLFlow
+            logging.StreamHandler(stream=LOG_STREAM)  # log to StringIO object for storing in MLFlow
         ])
 
     run_experiment()

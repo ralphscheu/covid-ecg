@@ -79,6 +79,7 @@ target/
 /data/
 /notebooks/
 /mlruns/
+/dask-worker-space/
 
 # Mac OS-specific storage files
 .DS_Store

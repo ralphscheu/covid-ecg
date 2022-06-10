@@ -4,23 +4,23 @@ samples_list: ./data/interim/recordings.csv
 ecg_type: stress
 ecg_leads: all
 features: plain_signal
-flatten_leads: no
-imbalance_mitigation: smote  # random_undersampling
+flatten_leads: yes
+imbalance_mitigation: smote  # smote | random_undersampling | criterion_weights
 
 # model definition
 model: cnn1d
 grid_search:
-  module__dense_hidden_size:
+  clf__module__dense_hidden_size:
     - 16
-    # - 32
+    - 32
     # - 64
     # - 128
-  lr:
-    # - 0.00005
-    - 0.00003
+  clf__lr:
+    - 0.00005
+    # - 0.00003
     - 0.00002
     # - 0.00001
-  batch_size:
+  clf__batch_size:
     # - 32
     # - 64
     - 100
