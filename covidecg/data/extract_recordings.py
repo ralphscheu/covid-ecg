@@ -78,7 +78,6 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
             # -> ecg_length / sampling_rate = recording length in seconds
             ecg_length = len(rec_df.index)
 
-
             # generate DataFrame Index as milliseconds from start of run (integer)
             ms_between_samples = int(1.0 / sampling_rate * 1000)
             rec_df.index = pd.RangeIndex(0, ms_between_samples * len(rec_df.index), ms_between_samples)
@@ -92,6 +91,15 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
             patients_list['diagnose_date'] = pd.to_datetime(patients_list['diagnose_date'], format='%Y-%m-%d')
             patients_list['age'] = (patients_list['diagnose_date'] - patients_list['birth_date']).astype('<m8[Y]')
             pat_info = patients_list.loc[ patients_list['nr'].astype(str) == file_name_split[0]].iloc[0]
+
+            # exclude if recording was done more than 7 days before diagnosis (covid and postcovid patients)
+            from datetime import datetime
+            recording_date = datetime.strptime(session_start, datetime_format)
+            # logger.info(f"diagnose_date: {pat_info['diagnose_date']}")
+            # logger.info(f"recording_date: {recording_date}")
+            # logger.info(f"Delta: {(recording_date - pat_info['diagnose_date']).days} days")
+            if prefix in ['covid', 'postcovid'] and (recording_date - pat_info['diagnose_date']).days < -7:
+                continue
 
 
             recording_list = pd.concat(
@@ -118,14 +126,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
 
 
 if __name__ == '__main__':
+    load_dotenv(find_dotenv())
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
-
-    # not used in this stub but often useful for finding various files
-    project_dir = Path(__file__).resolve().parents[2]
-
-    # find .env automagically by walking up directories until it's found, then
-    # load up the .env entries as environment variables
-    load_dotenv(find_dotenv())
-
     main()
