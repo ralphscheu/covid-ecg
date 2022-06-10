@@ -25,7 +25,8 @@ from imblearn.over_sampling import SMOTE
 from collections import Counter
 import matplotlib.pyplot as plt
 import random
-import torchinfo
+# import torchinfo
+import imblearn.pipeline
 # from dask.distributed import Client
 # from joblib import parallel_backend
 
@@ -66,21 +67,26 @@ def build_preprocessing_pipeline(conf, sampling_rate):
 
 def load_dataset(samples_list, root_dir, ecg_type):
     """ Load dataset and encode targets to numerical """
+    logging.info(f"Samples list: f{samples_list}")
     if ecg_type == 'stress':
-        X, y = data_utils.load_stress_ecg_runs(samples_list, root_dir)
+        X_a, y_a = data_utils.load_stress_ecg_runs(samples_list[0], root_dir)
+        X_b, y_b = data_utils.load_stress_ecg_runs(samples_list[1], root_dir)
     elif ecg_type == 'rest':
-        X, y = data_utils.load_rest_ecg_runs(samples_list, root_dir)
+        X_a, y_a = data_utils.load_rest_ecg_runs(samples_list[0], root_dir)
+        X_b, y_b = data_utils.load_rest_ecg_runs(samples_list[1], root_dir)
     else:
         raise Exception(f"Invalid ecg_type {ecg_type} in experiment configuration! (stress|rest)")
     
+    X, y = np.concatenate((X_a, X_b)), np.concatenate((y_a, y_b))
+    
     label_encoder = LabelEncoder()
     y = label_encoder.fit_transform(y).astype(np.int64)
+    logging.info(f"Classes in dataset: {label_encoder.classes_}")
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True, stratify=y)
     
     return X_train, X_test, y_train, y_test, label_encoder
 
-import imblearn.pipeline
 
 def build_model(conf:dict, X:np.ndarray, y:np.ndarray, class_weight=None) -> imblearn.pipeline.Pipeline:
     """ Define model and optimizer according to experiment configuration """
@@ -163,7 +169,6 @@ def evaluate_experiment(X_test, y_true, y_encoder, gs):
     roc_auc_curve_figure = sklearn.metrics.RocCurveDisplay.from_estimator(gs, X_test, y_true).figure_
     
     logging.info("Logging metrics to MLFlow...")
-    # # mlflow.log_metrics({'accuracy': accuracy_score, 'roc_auc': roc_auc_score, 'f1': f1_score, 'precision': precision_score, 'recall': recall_score})
     mlflow.log_figure(conf_matrix_figure, 'confusion_matrix.png')
     mlflow.log_figure(roc_auc_curve_figure, 'roc_auc_curve.png')
     

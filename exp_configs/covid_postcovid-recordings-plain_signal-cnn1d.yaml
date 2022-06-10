@@ -1,0 +1,34 @@
+# input data
+root_dir: ./data/interim/recordings
+samples_list:
+  - ./data/interim/recordings_covid.csv
+  - ./data/interim/recordings_postcovid.csv
+ecg_type: stress
+ecg_leads: all
+features: plain_signal
+flatten_leads: yes
+imbalance_mitigation: smote  # smote | random_undersampling | criterion_weights
+
+# model definition
+model: cnn1d
+grid_search:
+  clf__module__dense_hidden_size:
+    - 16
+    - 32
+    # - 64
+    # - 128
+  clf__lr:
+    - 0.00005
+    # - 0.00003
+    - 0.00002
+    # - 0.00001
+  clf__batch_size:
+    # - 32
+    # - 64
+    - 100
+    # - 150
+
+early_stopping_max_epochs: 100
+early_stopping_patience: 10
+
+num_cv_folds: 5

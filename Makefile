@@ -70,6 +70,13 @@ data:
 		--patients-list data/raw/patients_covid.csv \
 		data/raw/ecg_export_covid data/interim/recordings_covid
 	
+	rm -rf data/interim/recordings_postcovid
+	mkdir data/interim/recordings_postcovid
+	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
+	--prefix postcovid \
+	--patients-list data/raw/patients_postcovid.csv \
+	data/raw/ecg_export_postcovid data/interim/recordings_postcovid
+	
 	rm -rf data/interim/recordings_ctrl
 	mkdir data/interim/recordings_ctrl
 	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
@@ -81,10 +88,12 @@ data:
 	rm -rf data/interim/recordings
 	mkdir data/interim/recordings
 	ln -s $(shell pwd)/data/interim/recordings_covid/* $(shell pwd)/data/interim/recordings/
+	ln -s $(shell pwd)/data/interim/recordings_postcovid/* $(shell pwd)/data/interim/recordings/
 	ln -s $(shell pwd)/data/interim/recordings_ctrl/* $(shell pwd)/data/interim/recordings/
 
 	# merge ecg run info csv files
 	cp data/interim/recordings_covid.csv data/interim/recordings.csv
+	tail -n +2 data/interim/recordings_postcovid.csv >> data/interim/recordings.csv
 	tail -n +2 data/interim/recordings_ctrl.csv >> data/interim/recordings.csv
 
 
@@ -106,7 +115,7 @@ train_cnn2d:
 	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_ctrl_classification/01-covid_ctrl-recordings-plain_signal-cnn2d.yaml
 
 train_cnn1d:
-	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_ctrl_classification/01-covid_ctrl-recordings-plain_signal-cnn1d.yaml
+	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_postcovid-recordings-plain_signal-cnn1d.yaml
 
 
 train: train_mlp train_cnn2d train_cnn1d
