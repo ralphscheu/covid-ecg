@@ -37,31 +37,29 @@ class CNN2D(nn.Module):
     def __init__(self, dense_hidden_size):
         super().__init__()
         self.layers = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=(1, 5), stride=(1, 2), padding=(0,2)),
+            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=(3, 10), stride=(1, 2), padding=(1,4)),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 2)),
-            nn.Dropout(0.1),
+            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 3)),
             
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(1, 5), stride=(1, 2), padding=(0, 2)),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 10), stride=(1, 2), padding=(0, 4)),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 2)),
-            nn.Dropout(0.1),
+            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 3)),
             
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(1, 5), stride=(1, 2), padding=(0, 2)),
+            nn.Conv2d(in_channels=64, out_channels=96, kernel_size=(3, 10), stride=(1, 2), padding=(1, 4)),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 2)),
-            nn.Dropout(0.1),
+            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 3)),
+            nn.Dropout(0.5),
             
             nn.Flatten(),
             nn.LazyLinear(dense_hidden_size),  # automatically infers input shape
-            nn.Linear(dense_hidden_size, dense_hidden_size),
-            nn.Linear(dense_hidden_size, 2),
+            nn.LazyLinear(dense_hidden_size // 2),
+            nn.LazyLinear(2),
             nn.Softmax(dim=-1)
         )
 
     def forward(self, x):
         '''Forward pass'''
-        # print("CNN input:", x.shape)
+        x = x.reshape(x.shape[0], 12, -1)  # undo channel flattening
         return self.layers(x[:, np.newaxis, :, :])
 
 

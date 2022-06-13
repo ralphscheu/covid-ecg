@@ -88,8 +88,19 @@ def load_dataset(samples_list, root_dir, ecg_type):
     return X_train, X_test, y_train, y_test, label_encoder
 
 
-def build_model(conf:dict, X:np.ndarray, y:np.ndarray, class_weight=None) -> imblearn.pipeline.Pipeline:
+def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.pipeline.Pipeline:
     """ Define model and optimizer according to experiment configuration """
+    
+    logging.info(f"Applying {conf['imbalance_mitigation']} to mitigate class imbalance in training data...")
+        
+    logging.debug(f"Class distribution in training set: {Counter(y_train)}")
+
+    class_weight = None
+    if conf['imbalance_mitigation'] == 'criterion_weights':
+        class_weight = sklearn.utils.class_weight.compute_class_weight(
+            class_weight='balanced', classes=np.unique(y_train), y=y_train)
+        class_weight = torch.Tensor(class_weight)
+
     
     if conf['model'] == 'svm':
         if conf['svm_class_weight_balanced']:
@@ -101,7 +112,7 @@ def build_model(conf:dict, X:np.ndarray, y:np.ndarray, class_weight=None) -> imb
         clf = skorch.NeuralNetClassifier(
             # model config
             module=MLP,
-            module__input_size=X[0].size,
+            module__input_size=X_train[0].size,
             # loss config
             criterion=nn.CrossEntropyLoss,
             criterion__weight=class_weight,
@@ -147,8 +158,12 @@ def build_model(conf:dict, X:np.ndarray, y:np.ndarray, class_weight=None) -> imb
 
     if conf['imbalance_mitigation'] == 'smote':
         pipe = imblearn.pipeline.Pipeline([('smote', SMOTE()), ('clf', clf)])
-    else:
+    elif conf['imbalance_mitigation'] == 'random_undersampling':
+        pipe = imblearn.pipeline.Pipeline([('random_undersampling', RandomUnderSampler()), ('clf', clf)])
+    elif conf['imbalance_mitigation'] == 'criterion_weights':
         pipe = imblearn.pipeline.Pipeline([('clf', clf)])
+    else:
+        raise f"Invalid value {conf['imbalance_mitigation']} for imbalance_mitigation!"
 
     return pipe
 
@@ -186,8 +201,9 @@ def evaluate_experiment(X_test, y_true, y_encoder, gs):
 def run_experiment(config_file):
 
     # read experiment config    
-    with open(config_file) as _config_file_handle:
-        conf = yaml.safe_load(_config_file_handle)
+    with open(config_file) as f:
+        conf_str = f.read()
+        conf = yaml.safe_load(conf_str)
 
     logging.info("Loading dataset...")
     X_train, X_test, y_train, y_test, y_encoder = load_dataset(samples_list=conf['samples_list'], root_dir=conf['root_dir'], ecg_type=conf['ecg_type'])
@@ -204,22 +220,6 @@ def run_experiment(config_file):
     logging.info(f"Shapes after preprocessing - X_train: {X_train.shape} - X_test: {X_test.shape}")
 
     ###
-    
-    logging.info(f"Class distribution in training set: {Counter(y_train)}")
-
-    # class_weight = None
-    # if conf['imbalance_mitigation'] == 'criterion_weights':
-    #     class_weight = torch.Tensor(sklearn.utils.class_weight.compute_class_weight(class_weight='balanced', classes=np.unique(y_train), y=y_train))
-    # elif conf['imbalance_mitigation'] == 'random_undersampling':
-    #     shape_original = X_train.shape
-    #     X_train, y_train = RandomUnderSampler(random_state=0).fit_resample(X_train.reshape(shape_original[0], -1), y_train)
-    #     X_train = X_train.reshape(-1, *shape_original[1:])
-    # elif conf['imbalance_mitigation'] == 'smote':
-    #     shape_original = X_train.shape
-    #     X_train, y_train = SMOTE().fit_resample(X_train.reshape(shape_original[0], -1), y_train)
-    #     X_train = X_train.reshape(-1, *shape_original[1:])
-    # else:
-    #     raise f"Invalid option '{conf['imbalance_mitigation']}' for class imbalance mitigation"
 
     mlflow.sklearn.autolog()
     experiment = mlflow.set_experiment(Path(config_file).stem)
@@ -231,8 +231,7 @@ def run_experiment(config_file):
                               'ecg_leads': conf['ecg_leads'],
                               'model': conf['model']}):
 
-        with open(config_file) as f:
-            mlflow.log_text(f.read(), 'experiment_config.yaml')
+        mlflow.log_text(conf_str, 'experiment_config.yaml')
 
         logging.info("Building model...")
         model = build_model(conf, X_train, y_train)
@@ -247,7 +246,6 @@ def run_experiment(config_file):
 
         logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
         logging.info(f"GridSearchCV - Best Params: {gs.best_params_}")
-
         logging.info("Evaluating best model as determined by Grid Search...")
         evaluate_experiment(X_test, y_test, y_encoder, gs)
 

@@ -112,10 +112,11 @@ train_mlp:
 
 
 train_cnn2d:
-	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_ctrl_classification/01-covid_ctrl-recordings-plain_signal-cnn2d.yaml
+	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_postcovid-recordings-plain_signal-cnn2d.yaml
 
 train_cnn1d:
 	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_postcovid-recordings-plain_signal-cnn1d.yaml
+#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/postcovid_ctrl-recordings-plain_signal-cnn1d.yaml
 
 
 train: train_mlp train_cnn2d train_cnn1d

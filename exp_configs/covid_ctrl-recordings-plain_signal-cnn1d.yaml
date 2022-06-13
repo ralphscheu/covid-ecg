@@ -1,6 +1,8 @@
 # input data
 root_dir: ./data/interim/recordings
-samples_list: ./data/interim/recordings.csv
+samples_list:
+  - ./data/interim/recordings_covid.csv
+  - ./data/interim/recordings_ctrl.csv
 ecg_type: stress
 ecg_leads: all
 features: plain_signal

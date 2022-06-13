@@ -1,13 +1,13 @@
 # input data
 root_dir: ./data/interim/recordings
 samples_list:
-  - ./data/interim/recordings_covid.csv
   - ./data/interim/recordings_postcovid.csv
+  - ./data/interim/recordings_ctrl.csv
 ecg_type: stress
 ecg_leads: all
 features: plain_signal
 flatten_leads: yes
-imbalance_mitigation: criterion_weights  # smote | random_undersampling | criterion_weights
+imbalance_mitigation: smote  # smote | random_undersampling | criterion_weights
 
 # model definition
 model: cnn1d
