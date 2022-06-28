@@ -114,9 +114,16 @@ train_mlp:
 train_cnn2d:
 	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_postcovid-recordings-plain_signal-cnn2d.yaml
 
-train_cnn1d:
+
+train_cnn1d__raw_signal:
 	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_postcovid-recordings-plain_signal-cnn1d.yaml
 #	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/postcovid_ctrl-recordings-plain_signal-cnn1d.yaml
+
+train_cnn1d__lfcc:
+	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_postcovid-recordings-lfcc-cnn1d.yaml
+#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/postcovid_ctrl-recordings-lfcc-cnn1d.yaml
+
+train_cnn1d: train_cnn1d__raw_signal train_cnn1d__lfcc
 
 
 train: train_mlp train_cnn2d train_cnn1d

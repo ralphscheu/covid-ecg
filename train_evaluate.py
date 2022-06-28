@@ -49,6 +49,8 @@ def build_preprocessing_pipeline(conf, sampling_rate):
 
     if conf['features'] == 'plain_signal':
         pass
+    elif conf['features'] == 'lfcc':
+        preprocessing.steps.append(('extract_lfcc', feature_utils.EcgLfccFeatsExtractor(sampling_rate=sampling_rate)))
     elif conf['features'] == 'peaks':
         preprocessing.steps.append(('peaks_feats', feature_utils.EcgPeaksFeatsExtractor(sampling_rate=sampling_rate)))
     elif conf['features'] == 'intervals':
@@ -210,9 +212,7 @@ def run_experiment(config_file):
 
     ###
 
-    preprocessing = build_preprocessing_pipeline(
-        conf=conf, 
-        sampling_rate=int(os.environ['SAMPLING_RATE']))
+    preprocessing = build_preprocessing_pipeline(conf=conf, sampling_rate=int(os.environ['SAMPLING_RATE']))
     logging.info("Preprocessing data...")
     logging.info(f"Preprocessing steps: {preprocessing.named_steps}")
     X_train = preprocessing.fit_transform(X_train).astype(np.float32)
@@ -259,7 +259,6 @@ def run_experiment(config_file):
 
 if __name__ == '__main__':
     load_dotenv(find_dotenv())
-    
     LOG_STREAM = StringIO()
     logging.basicConfig(
         level='INFO', 
@@ -268,5 +267,4 @@ if __name__ == '__main__':
             logging.StreamHandler(),  # log to stdout
             logging.StreamHandler(stream=LOG_STREAM)  # log to StringIO object for storing in MLFlow
         ])
-
     run_experiment()
