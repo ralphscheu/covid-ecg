@@ -5,7 +5,7 @@ samples_list:
   - ./data/interim/recordings_postcovid.csv
 ecg_type: stress
 ecg_leads: all
-features: plain_signal
+features: lfcc
 flatten_leads: yes
 imbalance_mitigation: smote  # smote | random_undersampling | criterion_weights
 
