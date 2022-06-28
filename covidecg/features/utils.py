@@ -190,6 +190,7 @@ class EcgLfccFeatsExtractor(BaseEstimator, TransformerMixin):
         for lead_i in range(x.shape[1]):
             lead_signals = x[:, lead_i]
             lead_lfcc_feats = [spafe.features.lfcc.lfcc(signal, fs=self.sampling_rate) for signal in lead_signals]
+            lead_lfcc_feats = np.stack(lead_lfcc_feats)
             lfcc_feats.append(lead_lfcc_feats)
-        lfcc_feats = np.vstack(lfcc_feats)
+        lfcc_feats = np.stack(lfcc_feats, axis=1)
         return lfcc_feats
