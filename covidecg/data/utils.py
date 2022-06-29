@@ -15,19 +15,24 @@ def load_signal(filepath):
     return pd.read_csv(filepath, index_col=0).to_numpy().T
 
 
-def load_runs(runs_list, root_dir, min_length=5000, max_length=5000):
+def load_runs(runs_list, root_dir, min_length=5000, max_length=5000, return_pat_ids=True):
     """ Load raw ECG Signals from runs dir """
     
     runs_list = runs_list.loc[runs_list.ecg_length >= min_length]
     runs_list = runs_list.loc[runs_list.ecg_length <= max_length]
     
-    signals, targets = [], []
+    signals, targets, pat_ids = [], [], []
     for i in range(len(runs_list.index)):        
         signal_path = os.path.join(root_dir, runs_list.iloc[i]['recording'] + '.csv')
         signal = load_signal(signal_path)
         signals.append(signal)
         targets.append(runs_list.iloc[i]['pat_group'])
-    return np.stack(signals).astype(np.float32), np.array(targets)
+        pat_ids.append(runs_list.iloc[i]['pat_id'])
+    
+    if return_pat_ids:
+        return np.stack(signals).astype(np.float32), np.array(targets), np.array(pat_ids)
+    else:
+        return np.stack(signals).astype(np.float32), np.array(targets)
 
 def load_all_runs(runs_csv, root_dir):
     runs_list = pd.read_csv(runs_csv, sep=';')

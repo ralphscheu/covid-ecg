@@ -82,7 +82,7 @@ class CNN1D(nn.Module):
             nn.Conv1d(in_channels=48, out_channels=96, kernel_size=10, stride=1, padding=4),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=5, stride=3),
-            nn.Dropout(0.5),
+            nn.Dropout(0.1),
             
             nn.Flatten(),
             nn.LazyLinear(dense_hidden_size),  # automatically infers input shape
