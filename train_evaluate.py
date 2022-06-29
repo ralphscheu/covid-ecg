@@ -32,11 +32,12 @@ import imblearn.pipeline
 
 # client = Client('127.0.0.1:8786')
 
-# set seeds for reproducibility
+# ensure reproducibility
 random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
+torch.use_deterministic_algorithms(True)
 
 
 def build_preprocessing_pipeline(conf, sampling_rate):
