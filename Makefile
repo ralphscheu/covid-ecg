@@ -108,7 +108,7 @@ lfcc:
 features: features-medical features-lfcc
 
 train_mlp:
-	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_ctrl_classification/01-covid_ctrl-recordings-plain_signal-mlp.yaml
+	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_postcovid-recordings-plain_signal-mlp.yaml
 
 
 train_cnn2d:
