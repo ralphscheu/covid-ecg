@@ -5,18 +5,6 @@ samples_list:
   - ./data/interim/recordings_postcovid.csv
 ecg_type: stress
 ecg_leads: all
-features: plain_signal
+features: lfcc
 flatten_leads: yes
 imbalance_mitigation: smote  # smote | random_undersampling | criterion_weights
-
-# model definition
-model: mlp
-grid_search:
-  clf__module__hidden_size: [32, 64, 128]
-  clf__lr: [0.0001, 0.00005, 0.00003]
-  clf__batch_size: [64, 100]
-
-early_stopping_max_epochs: 30
-early_stopping_patience: 10
-
-num_cv_folds: 5

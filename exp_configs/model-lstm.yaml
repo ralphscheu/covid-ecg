@@ -1,0 +1,10 @@
+model: lstm
+grid_search:
+  clf__module__hidden_size: [16, 32]
+  clf__lr: [0.0001]
+  clf__batch_size: [64]
+
+# GridSearch config
+early_stopping_max_epochs: 100
+early_stopping_patience: 10
+num_cv_folds: 5

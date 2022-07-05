@@ -42,13 +42,19 @@ torch.use_deterministic_algorithms(True)
 
 
 @click.command()
-@click.option('--config-file', required=True, type=click.Path(exists=True))
-def run_experiment(config_file):
+@click.option('--exp-config', required=True, type=click.Path(exists=True))
+@click.option('--model-config', required=True, type=click.Path(exists=True))
+def run_experiment(exp_config, model_config):
 
     # read experiment config    
-    with open(config_file) as f:
-        conf_str = f.read()
+    with open(exp_config) as f:
+        conf_str = '### EXPERIMENT CONFIG ###\n'
+        conf_str += f.read()
         conf = yaml.safe_load(conf_str)
+    with open(model_config) as f:
+        conf_str += '\n\n### MODEL CONFIG ###\n'
+        conf_str += f.read()
+        conf = {**conf, **yaml.safe_load(conf_str)}  # combine exp and model configs into single dict
 
     logging.info("Loading dataset...")
     X_train, X_test, y_train, y_test, y_encoder = train_eval_utils.load_dataset(samples_list=conf['samples_list'], root_dir=conf['root_dir'], ecg_type=conf['ecg_type'])
@@ -65,7 +71,7 @@ def run_experiment(config_file):
     ###
 
     mlflow.sklearn.autolog()
-    experiment = mlflow.set_experiment(Path(config_file).stem)
+    experiment = mlflow.set_experiment(Path(exp_config).stem[4:])
     with mlflow.start_run(experiment_id=experiment.experiment_id, 
                           tags={
                               'features': conf['features'], 

@@ -95,3 +95,26 @@ class CNN1D(nn.Module):
         '''Forward pass'''
         x = x.reshape(x.shape[0], 12, -1)  # undo channel flattening
         return self.layers(x)
+
+class LSTM(nn.Module):
+    def __init__(self, input_size, hidden_size):
+        super().__init__()
+        
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.linear = nn.Linear(hidden_size, 2)
+
+    def forward(self, x):
+        x = x.reshape(x.shape[0], 12, -1)  # undo channel/lead flattening
+        # print("RNN input shape:", x.shape)  # batch_size, leads, timesteps
+        x = x.swapaxes(1, 2)
+        # print("RNN input shape:", x.shape)  # batch_size, timesteps, leads
+        
+        # The RNN also returns its hidden state but we don't use it.
+        # While the RNN can also take a hidden state as input, the RNN
+        # gets passed a hidden state initialized with zeros by default.
+        x, _ = self.lstm(x)
+        print("LSTM output:", x.shape)
+        x = self.linear(x)
+        x = x[:, -1, :]  # only return last state
+        print("model output:", x.shape)
+        return x

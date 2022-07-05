@@ -1,0 +1,8 @@
+model: svm
+grid_search:
+  clf__kernel: [linear, poly, rbf]
+
+# GridSearch config
+early_stopping_max_epochs: 100
+early_stopping_patience: 10
+num_cv_folds: 5

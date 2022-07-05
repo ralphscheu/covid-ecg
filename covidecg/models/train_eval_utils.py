@@ -7,12 +7,12 @@ import numpy as np
 import yaml
 import covidecg.data.utils as data_utils
 import covidecg.features.utils as feature_utils
-from sklearn.model_selection import KFold, StratifiedKFold, train_test_split, GridSearchCV, GroupShuffleSplit, GroupKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearchCV, GroupShuffleSplit, GroupKFold
 import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder
 import skorch
 from skorch.callbacks import EpochScoring, EarlyStopping
-from covidecg.models.models import MLP, CNN2D, CNN1D
+from covidecg.models.models import MLP, CNN2D, CNN1D, VGG16, LSTM
 import mlflow
 import torch.nn as nn
 import sklearn.metrics
@@ -25,6 +25,7 @@ from imblearn.over_sampling import SMOTE
 from collections import Counter
 import random
 import imblearn.pipeline
+import matplotlib.pyplot as plt
 
 
 def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeline.Pipeline:
@@ -151,6 +152,22 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
             max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
         )
 
+    elif conf['model'] == 'lstm':
+        clf = skorch.NeuralNetClassifier(
+            # model config
+            module=LSTM,
+            module__input_size=12,
+            # loss config
+            criterion=nn.CrossEntropyLoss,
+            criterion__weight=class_weight,
+            optimizer=torch.optim.Adam,
+            # hyperparams
+            callbacks=[
+                EpochScoring(scoring='roc_auc', lower_is_better=False),  # additional scores to observe
+                EarlyStopping(patience=conf['early_stopping_patience'])  # Early Stopping based on validation loss
+                ],
+            max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
+        )
     if conf['imbalance_mitigation'] == 'smote':
         pipe = imblearn.pipeline.Pipeline([('smote', SMOTE()), ('clf', clf)])
     elif conf['imbalance_mitigation'] == 'random_undersampling':
