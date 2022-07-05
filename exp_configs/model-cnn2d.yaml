@@ -1,4 +1,4 @@
-model: cnn1d
+model: cnn2d
 grid_search:
   clf__module__dense_hidden_size: [16, 32]
   clf__lr: [0.00005, 0.00003]
