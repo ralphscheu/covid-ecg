@@ -1,6 +1,8 @@
 import numpy as np
 import torch.functional as F
 import torch.nn as nn
+import torchvision.models
+import torch
 
 
 '''
@@ -95,6 +97,52 @@ class CNN1D(nn.Module):
         '''Forward pass'''
         x = x.reshape(x.shape[0], 12, -1)  # undo channel flattening
         return self.layers(x)
+
+
+'''
+    ECG Image classification model using VGG16 for feature extraction and FC layers for classification
+'''
+class VGG16(nn.Module):
+    
+    def __init__(self):
+        super().__init__()
+        vgg16_pretrained = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES)
+        
+        self.vgg_feature_extractor = nn.Sequential(
+            # torchvision.transforms.Resize((224, 224)),
+            vgg16_pretrained.features#,
+            # vgg16_pretrained.avgpool
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),            
+            # Binary Classifier
+            nn.Linear(in_features=25088, out_features=4096),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(in_features=4096, out_features=4096),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(in_features=4096, out_features=2),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        '''Forward pass'''
+
+        # print("========================")
+        # print("x:", x.shape)  # batch_size, *
+        x = x.reshape(x.shape[0], 3, 224, 224)  # undo channel flattening
+        # print("x:", x.shape)  # batch_size, channels, image_height, image_width
+
+        x = self.vgg_feature_extractor(x)
+        # print("x after feature extraction:", x.shape)
+        x = nn.Flatten()(x)
+        # print("x before classifier:", x.shape)
+        x = self.classifier(x)
+        # print("========================")
+        
+        return x
+
 
 class LSTM(nn.Module):
     def __init__(self, input_size, hidden_size):

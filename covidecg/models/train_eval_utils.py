@@ -25,6 +25,7 @@ from imblearn.over_sampling import SMOTE
 from collections import Counter
 import random
 import imblearn.pipeline
+import torchvision.models
 import matplotlib.pyplot as plt
 
 
@@ -38,6 +39,20 @@ def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeli
 
     if conf['features'] == 'plain_signal':
         pass
+    if conf['features'] == 'signal_image':
+        preprocessing.steps.append(('convert_signal_to_image', feature_utils.EcgSignalToImageConverter()))
+
+        if conf['model'] == 'vgg16':
+            
+            preprocessing.steps.append(('grayscale_to_rgb', FunctionTransformer(data_utils.grayscale_to_rgb)))
+            
+            # convert to torch.Tensor for vgg16 image preprocessing
+            preprocessing.steps.append(('to_tensor', FunctionTransformer(torch.from_numpy)))
+            # apply preprocessing transforms for vgg16 input
+            preprocessing.steps.append(('vgg16_image_preprocessing', FunctionTransformer(torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES.transforms())))
+            # convert back to numpy array
+            preprocessing.steps.append(('to_numpy', FunctionTransformer(lambda x_tensor: x_tensor.detach().cpu().numpy())))
+
     elif conf['features'] == 'lfcc':
         preprocessing.steps.append(('extract_lfcc', feature_utils.EcgLfccFeatsExtractor(sampling_rate=sampling_rate)))
     elif conf['features'] == 'peaks':
@@ -168,6 +183,23 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
                 ],
             max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
         )
+    elif conf['model'] == 'vgg16':
+        clf = skorch.NeuralNetClassifier(
+            # model config
+            module=VGG16,
+            # loss config
+            criterion=nn.CrossEntropyLoss,
+            criterion__weight=class_weight,
+            optimizer=torch.optim.Adam,
+            # hyperparams
+            callbacks=[
+                EpochScoring(scoring='roc_auc', lower_is_better=False),  # additional scores to observe
+                EarlyStopping(patience=conf['early_stopping_patience'])  # Early Stopping based on validation loss
+                ],
+            max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
+        )
+
+    # add under/oversampling steps to model pipeline if desired
     if conf['imbalance_mitigation'] == 'smote':
         pipe = imblearn.pipeline.Pipeline([('smote', SMOTE()), ('clf', clf)])
     elif conf['imbalance_mitigation'] == 'random_undersampling':

@@ -59,6 +59,10 @@ def flatten_leads(x):
     return x.reshape(x.shape[0], -1)
 
 
+def grayscale_to_rgb(x):
+    return np.repeat(x, 3, axis=1)
+
+
 ##########################################################
 #               PIPELINE BUILDING BLOCKS                 #
 ##########################################################
