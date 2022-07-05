@@ -62,7 +62,7 @@ test_environment:
 
 ## Make Dataset
 data: 
-	# Extract runs
+#	Extract runs
 	rm -rf data/interim/recordings_covid
 	mkdir data/interim/recordings_covid
 	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
@@ -84,72 +84,85 @@ data:
 	--patients-list data/raw/patients_ctrl.csv \
 	data/raw/ecg_export_ctrl data/interim/recordings_ctrl
 
-	# merge ecg run directories
+#	merge ecg run directories
 	rm -rf data/interim/recordings
 	mkdir data/interim/recordings
 	ln -s $(shell pwd)/data/interim/recordings_covid/* $(shell pwd)/data/interim/recordings/
 	ln -s $(shell pwd)/data/interim/recordings_postcovid/* $(shell pwd)/data/interim/recordings/
 	ln -s $(shell pwd)/data/interim/recordings_ctrl/* $(shell pwd)/data/interim/recordings/
 
-	# merge ecg run info csv files
+#	merge ecg run info csv files
 	cp data/interim/recordings_covid.csv data/interim/recordings.csv
 	tail -n +2 data/interim/recordings_postcovid.csv >> data/interim/recordings.csv
 	tail -n +2 data/interim/recordings_ctrl.csv >> data/interim/recordings.csv
 
 
-## Generate features
-features: features-medical features-lfcc
-
 train_mlp:
-	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/covid_postcovid-recordings-plain_signal-mlp.yaml
+#	MLP on plain signal
+	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
+		${PYTHON_INTERPRETER} ./train_evaluate.py \
+			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
+			--model-config ./exp_configs/model-mlp.yaml ; \
+	done
+
+#	MLP on LFCC features
+	for exp_name in covid-postcovid-lfcc covid-ctrl-lfcc postcovid-ctrl-lfcc ; do \
+		${PYTHON_INTERPRETER} ./train_evaluate.py \
+			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
+			--model-config ./exp_configs/model-mlp.yaml ; \
+	done
 
 
 train_cnn2d:
+#	CNN2D on plain signal
 	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
+		${PYTHON_INTERPRETER} ./train_evaluate.py \
+			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
+			--model-config ./exp_configs/model-cnn2d.yaml ; \
+	done
+	
+#	CNN2D on LFCC features
+	for exp_name in covid-postcovid-lfcc covid-ctrl-lfcc postcovid-ctrl-lfcc ; do \
 		${PYTHON_INTERPRETER} ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-cnn2d.yaml ; \
 	done
 
 
-train_cnn1d_signal:
+train_cnn1d:
+#	CNN1D on plain signal
 	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
 		${PYTHON_INTERPRETER} ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-cnn1d.yaml ; \
 	done
 
-
-train_cnn1d_lfcc:
+#	CNN1D on LFCC features
 	for exp_name in covid-postcovid-lfcc covid-ctrl-lfcc postcovid-ctrl-lfcc ; do \
 		${PYTHON_INTERPRETER} ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-cnn1d.yaml ; \
-		
-		--config-file ./exp_configs/covid_postcovid-recordings-lfcc-cnn1d.yaml
 
-train_cnn1d: train_cnn1d_signal train_cnn1d_lfcc
+	done
 
 
-train_rnn:
+train_lstm:
+#	LSTM on plain signal
 	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
 		${PYTHON_INTERPRETER} train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-lstm.yaml ; \
 	done
 
+#	LSTM on LFCC features
+	for exp_name in covid-postcovid-lfcc covid-ctrl-lfcc postcovid-ctrl-lfcc ; do \
+		${PYTHON_INTERPRETER} train_evaluate.py \
+			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
+			--model-config ./exp_configs/model-lstm.yaml ; \
+	done
 
-train: train_mlp train_cnn2d train_cnn1d train_rnn
-#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/01-covid_ctrl-recordings-plain_signal-svmlinear.yaml
-#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/01-covid_ctrl-recordings-plain_signal-mlp.yaml
 
-#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/02-covid_ctrl-recordings-peaks-svmlinear.yaml
-
-#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/03-covid_ctrl-recordings-intervals-svmlinear.yaml
-#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/03-covid_ctrl-recordings-intervals-mlp.yaml
-
-#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/04-covid_ctrl-recordings-peaks_intervals-svmlinear.yaml
-#	${PYTHON_INTERPRETER} ./train_evaluate.py --config-file ./exp_configs/04-covid_ctrl-recordings-peaks_intervals-mlp.yaml
+train: train_mlp train_cnn2d train_cnn1d train_lstm
 
 
 #################################################################################
