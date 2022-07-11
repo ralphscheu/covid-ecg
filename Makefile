@@ -162,6 +162,16 @@ train_lstm:
 	done
 
 
+train_lstmattn:
+#	LSTM w/ Attention on plain signal
+	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
+		${PYTHON_INTERPRETER} train_evaluate.py \
+			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
+			--model-config ./exp_configs/model-lstmattn.yaml ; \
+	done
+
+
+
 train: train_mlp train_cnn2d train_cnn1d train_lstm
 
 

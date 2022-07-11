@@ -8,6 +8,7 @@ import yaml
 import covidecg.data.utils as data_utils
 import covidecg.features.utils as feature_utils
 from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearchCV, GroupShuffleSplit, GroupKFold
+from covidecg.models.lstm_attn import Attention, Encoder, Classifier
 import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder
 import skorch
@@ -150,7 +151,7 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
                 ],
             max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
         )
-        
+
     elif conf['model'] == 'cnn1d':
         clf = skorch.NeuralNetClassifier(
             # model config
@@ -166,7 +167,7 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
                 ],
             max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
         )
-
+        
     elif conf['model'] == 'lstm':
         clf = skorch.NeuralNetClassifier(
             # model config
@@ -183,6 +184,35 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
                 ],
             max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
         )
+
+    elif conf['model'] == 'lstmattn':
+        
+        bidirectional = True
+        hidden_size = 250
+        n_layers_rnn = 2
+        
+        rnn_encoder = Encoder(embedding_dim=12, hidden_dim=hidden_size, nlayers=n_layers_rnn, bidirectional=bidirectional)
+        
+        attention_dim = hidden_size if not bidirectional else 2 * hidden_size
+        attention = Attention(attention_dim, attention_dim, attention_dim)
+        
+        model = Classifier(encoder=rnn_encoder, attention=attention, hidden_dim=attention_dim, num_classes=2)
+        
+        clf = skorch.NeuralNetClassifier(
+            # model config
+            module=model,
+            # loss config
+            criterion=nn.CrossEntropyLoss,
+            criterion__weight=class_weight,
+            optimizer=torch.optim.Adam,
+            # hyperparams
+            callbacks=[
+                EpochScoring(scoring='roc_auc', lower_is_better=False),  # additional scores to observe
+                EarlyStopping(patience=conf['early_stopping_patience'])  # Early Stopping based on validation loss
+                ],
+            max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
+        )
+    
     elif conf['model'] == 'vgg16':
         clf = skorch.NeuralNetClassifier(
             # model config

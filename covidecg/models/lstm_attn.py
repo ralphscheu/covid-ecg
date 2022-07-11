@@ -13,7 +13,7 @@ class Encoder(nn.Module):
     assert rnn_type in RNNS, 'Use one of the following: {}'.format(str(RNNS))
     rnn_cell = getattr(nn, rnn_type) # fetch constructor from torch.nn, cleaner than if
     self.rnn = rnn_cell(embedding_dim, hidden_dim, nlayers, 
-                        dropout=dropout, bidirectional=bidirectional)
+                        dropout=dropout, bidirectional=bidirectional, batch_first=False)
 
   def forward(self, input, hidden=None):
     return self.rnn(input, hidden)
@@ -25,6 +25,9 @@ class Attention(nn.Module):
     self.scale = 1. / math.sqrt(query_dim)
 
   def forward(self, query, keys, values):
+    # print("query:", query.shape)
+    # print("keys:", keys.shape)
+    # print("values:", values.shape)
     # Query = [BxQ]
     # Keys = [TxBxK]
     # Values = [TxBxV]
@@ -42,9 +45,8 @@ class Attention(nn.Module):
     return energy, linear_combination
 
 class Classifier(nn.Module):
-  def __init__(self, embedding, encoder, attention, hidden_dim, num_classes):
+  def __init__(self, encoder, attention, hidden_dim, num_classes):
     super(Classifier, self).__init__()
-    self.embedding = embedding
     self.encoder = encoder
     self.attention = attention
     self.decoder = nn.Linear(hidden_dim, num_classes)
@@ -56,9 +58,15 @@ class Classifier(nn.Module):
 
 
   def forward(self, input):
-    outputs, hidden = self.encoder(self.embedding(input))
+    
+    # print("input:", input.shape)
+    input = input.reshape(input.shape[0], -1, 12)  # undo channel flattening -> (batch_size, timesteps, features)
+    input = input.swapaxes(0,1)  # convert to (timesteps, batch_size, features)
+    # print("input after reshape:", input.shape)
+    
+    outputs, hidden = self.encoder(input)
     if isinstance(hidden, tuple): # LSTM
-      hidden = hidden[1] # take the cell state
+      hidden = hidden[1] # take the cell state 
 
     if self.encoder.bidirectional: # need to concat the last 2 hidden layers
       hidden = torch.cat([hidden[-1], hidden[-2]], dim=1)

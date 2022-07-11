@@ -34,10 +34,11 @@ import covidecg.models.train_eval_utils as train_eval_utils
 # client = Client('127.0.0.1:8786')
 
 # ensure reproducibility
-random.seed(0)
-np.random.seed(0)
-torch.manual_seed(0)
-torch.cuda.manual_seed(0)
+RANDOM_SEED = 0
+random.seed(RANDOM_SEED)
+np.random.seed(RANDOM_SEED)
+torch.manual_seed(RANDOM_SEED)
+torch.cuda.manual_seed(RANDOM_SEED)
 torch.use_deterministic_algorithms(True)
 
 
@@ -46,7 +47,7 @@ torch.use_deterministic_algorithms(True)
 @click.option('--model-config', required=True, type=click.Path(exists=True))
 def run_experiment(exp_config, model_config):
 
-    # read experiment config    
+    # read experiment config
     with open(exp_config) as f:
         conf_str = '### EXPERIMENT CONFIG ###\n'
         conf_str += f.read()

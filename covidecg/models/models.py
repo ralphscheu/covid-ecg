@@ -109,7 +109,6 @@ class VGG16(nn.Module):
         vgg16_pretrained = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES)
         
         self.vgg_feature_extractor = nn.Sequential(
-            # torchvision.transforms.Resize((224, 224)),
             vgg16_pretrained.features#,
             # vgg16_pretrained.avgpool
         )
