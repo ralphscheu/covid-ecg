@@ -146,6 +146,14 @@ train_cnn1d:
 	done
 
 
+train_vgg16:
+#	VGG16 on signal images
+	for exp_name in covid-postcovid-img covid-ctrl-img postcovid-ctrl-img ; do \
+		${PYTHON_INTERPRETER} train_evaluate.py \
+			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
+			--model-config ./exp_configs/model-vgg16.yaml ; \
+	done
+
 train_lstm:
 #	LSTM on plain signal
 	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
