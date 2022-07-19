@@ -61,38 +61,46 @@ test_environment:
 
 
 ## Make Dataset
-data: 
-#	Extract runs
-	rm -rf data/interim/recordings_covid
-	mkdir data/interim/recordings_covid
-	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
-		--prefix covid \
-		--patients-list data/raw/patients_covid.csv \
-		data/raw/ecg_export_covid data/interim/recordings_covid
+data:
 	
 	rm -rf data/interim/recordings_postcovid
 	mkdir data/interim/recordings_postcovid
 	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
-	--prefix postcovid \
-	--patients-list data/raw/patients_postcovid.csv \
-	data/raw/ecg_export_postcovid data/interim/recordings_postcovid
+		--prefix postcovid \
+		--patients-list data/raw/patients_postcovid.csv \
+		data/raw/ecg_export_postcovid data/interim/recordings_postcovid
 	
 	rm -rf data/interim/recordings_ctrl
 	mkdir data/interim/recordings_ctrl
 	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
-	--prefix ctrl \
-	--patients-list data/raw/patients_ctrl.csv \
-	data/raw/ecg_export_ctrl data/interim/recordings_ctrl
+		--prefix ctrl \
+		--patients-list data/raw/patients_ctrl.csv \
+		data/raw/ecg_export_ctrl data/interim/recordings_ctrl
 
-#	merge ecg run directories
+
+#	concatenate recordings of the same session together
+	$(PYTHON_INTERPRETER) covidecg/data/concat_recordings_per_session.py \
+		--recordings-list data/interim/recordings_postcovid.csv \
+		data/interim/recordings_postcovid data/interim/fullsessions_postcovid
+
+	$(PYTHON_INTERPRETER) covidecg/data/concat_recordings_per_session.py \
+		--recordings-list data/interim/recordings_ctrl.csv \
+		data/interim/recordings_ctrl data/interim/fullsessions_ctrl
+
+
+#	merge ecg recordings directories
 	rm -rf data/interim/recordings
 	mkdir data/interim/recordings
-	ln -s $(shell pwd)/data/interim/recordings_covid/* $(shell pwd)/data/interim/recordings/
 	ln -s $(shell pwd)/data/interim/recordings_postcovid/* $(shell pwd)/data/interim/recordings/
 	ln -s $(shell pwd)/data/interim/recordings_ctrl/* $(shell pwd)/data/interim/recordings/
 
+#	merge ecg recordings directories
+	rm -rf data/interim/fullsessions
+	mkdir data/interim/fullsessions
+	ln -s $(shell pwd)/data/interim/fullsessions_postcovid/* $(shell pwd)/data/interim/fullsessions/
+	ln -s $(shell pwd)/data/interim/fullsessions_ctrl/* $(shell pwd)/data/interim/fullsessions/
+
 #	merge ecg run info csv files
-	cp data/interim/recordings_covid.csv data/interim/recordings.csv
 	tail -n +2 data/interim/recordings_postcovid.csv >> data/interim/recordings.csv
 	tail -n +2 data/interim/recordings_ctrl.csv >> data/interim/recordings.csv
 

@@ -41,6 +41,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
     recording_list = pd.DataFrame()
 
     files = list(Path(input_dir).glob('*.xml'))
+    # loop through all downloaded session files
     for file in tqdm(files, desc="Processing files"):
         
         file_name_split = file.name.split('-')
@@ -107,6 +108,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
                     recording_list,
                     pd.DataFrame({
                         'recording': recording_id,
+                        'recording_date': recording_date,
                         'session': session_id,
                         'pat_id': pat_id,
                         'pat_group': prefix,
@@ -120,9 +122,9 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
                 ]
             )
 
-    # save ECG runs metadata
+    # save ECG recordings metadata
     recording_list.to_csv(f'data/interim/recordings_{prefix}.csv', sep=';', index=False)
-    logger.info(f'Done. Saved txt files to {output_dir}')
+    logger.info(f'Done. Saved csv files to {output_dir}')
 
 
 if __name__ == '__main__':
