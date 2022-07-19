@@ -102,13 +102,12 @@ class CNN1D(nn.Module):
 '''
     ECG Image classification model using VGG16 for feature extraction and FC layers for classification
 '''
-class VGG16(nn.Module):
-    
+class VGG16Classifier(nn.Module):
     def __init__(self):
         super().__init__()
         vgg16_pretrained = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES)
         
-        self.vgg_feature_extractor = nn.Sequential(
+        self.feature_extractor = nn.Sequential(
             vgg16_pretrained.features#,
             # vgg16_pretrained.avgpool
         )
@@ -127,19 +126,64 @@ class VGG16(nn.Module):
 
     def forward(self, x):
         '''Forward pass'''
-
         # print("========================")
         # print("x:", x.shape)  # batch_size, *
         x = x.reshape(x.shape[0], 3, 224, 224)  # undo channel flattening
         # print("x:", x.shape)  # batch_size, channels, image_height, image_width
 
-        x = self.vgg_feature_extractor(x)
+        x = self.feature_extractor(x)
         # print("x after feature extraction:", x.shape)
         x = nn.Flatten()(x)
         # print("x before classifier:", x.shape)
         x = self.classifier(x)
         # print("========================")
+        return x
+
+
+'''
+    ECG Image classification model using VGG16 for feature extraction and FC layers for classification
+'''
+class ResNet18Classifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        resnet18_pretrained = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
         
+        self.feature_extractor = nn.Sequential(
+                resnet18_pretrained.conv1,
+                resnet18_pretrained.bn1,
+                resnet18_pretrained.relu,
+                resnet18_pretrained.maxpool,
+                resnet18_pretrained.layer1,
+                resnet18_pretrained.layer2,
+                resnet18_pretrained.layer3,
+                resnet18_pretrained.layer4
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),            
+            # Binary Classifier
+            nn.Linear(in_features=25088, out_features=4096),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(in_features=4096, out_features=4096),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(in_features=4096, out_features=2),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        '''Forward pass'''
+        # print("========================")
+        # print("x:", x.shape)  # batch_size, *
+        x = x.reshape(x.shape[0], 3, 224, 224)  # undo channel flattening
+        # print("x:", x.shape)  # batch_size, channels, image_height, image_width
+
+        x = self.feature_extractor(x)
+        # print("x after feature extraction:", x.shape)
+        x = nn.Flatten()(x)
+        # print("x before classifier:", x.shape)
+        x = self.classifier(x)
+        # print("========================")
         return x
 
 

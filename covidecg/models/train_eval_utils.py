@@ -13,7 +13,7 @@ import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder
 import skorch
 from skorch.callbacks import EpochScoring, EarlyStopping
-from covidecg.models.models import MLP, CNN2D, CNN1D, VGG16, LSTM
+from covidecg.models.models import MLP, CNN2D, CNN1D, VGG16Classifier, ResNet18Classifier, LSTM
 import mlflow
 import torch.nn as nn
 import sklearn.metrics
@@ -44,9 +44,7 @@ def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeli
         preprocessing.steps.append(('convert_signal_to_image', feature_utils.EcgSignalToImageConverter()))
 
         if conf['model'] == 'vgg16':
-            
             preprocessing.steps.append(('grayscale_to_rgb', FunctionTransformer(data_utils.grayscale_to_rgb)))
-            
             # convert to torch.Tensor for vgg16 image preprocessing
             preprocessing.steps.append(('to_tensor', FunctionTransformer(torch.from_numpy)))
             # apply preprocessing transforms for vgg16 input
@@ -54,6 +52,14 @@ def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeli
             # convert back to numpy array
             preprocessing.steps.append(('to_numpy', FunctionTransformer(lambda x_tensor: x_tensor.detach().cpu().numpy())))
 
+        if conf['model'] == 'resnet18':
+            preprocessing.steps.append(('grayscale_to_rgb', FunctionTransformer(data_utils.grayscale_to_rgb)))
+            # convert to torch.Tensor for resnet18 image preprocessing
+            preprocessing.steps.append(('to_tensor', FunctionTransformer(torch.from_numpy)))
+            # apply preprocessing transforms for resnet18 input
+            preprocessing.steps.append(('resnet18_image_preprocessing', FunctionTransformer(torchvision.models.ResNet18_Weights.IMAGENET1K_V1.transforms())))
+            # convert back to numpy array
+    
     elif conf['features'] == 'lfcc':
         preprocessing.steps.append(('extract_lfcc', feature_utils.EcgLfccFeatsExtractor(sampling_rate=sampling_rate)))
     elif conf['features'] == 'peaks':
@@ -214,9 +220,9 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
         )
     
     elif conf['model'] == 'vgg16':
-        clf = skorch.NeuralNetClassifier(
+       clf = skorch.NeuralNetClassifier(
             # model config
-            module=VGG16,
+            module=VGG16Classifier,
             # loss config
             criterion=nn.CrossEntropyLoss,
             criterion__weight=class_weight,
@@ -228,6 +234,23 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
                 ],
             max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
         )
+     
+    elif conf['model'] == 'resnet18':
+        clf = skorch.NeuralNetClassifier(
+            # model config
+            module=ResNet18Classifier,
+            # loss config
+            criterion=nn.CrossEntropyLoss,
+            criterion__weight=class_weight,
+            optimizer=torch.optim.Adam,
+            # hyperparams
+            callbacks=[
+                EpochScoring(scoring='roc_auc', lower_is_better=False),  # additional scores to observe
+                EarlyStopping(patience=conf['early_stopping_patience'])  # Early Stopping based on validation loss
+                ],
+            max_epochs=conf['early_stopping_max_epochs'], device='cuda', iterator_train__shuffle=True  # Shuffle training data on each epoch
+        )
+         
 
     # add under/oversampling steps to model pipeline if desired
     if conf['imbalance_mitigation'] == 'smote':

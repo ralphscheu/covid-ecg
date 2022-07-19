@@ -65,8 +65,8 @@ def run_experiment(exp_config, model_config):
     preprocessing = train_eval_utils.build_preprocessing_pipeline(conf=conf, sampling_rate=int(os.environ['SAMPLING_RATE']))
     logging.info("Preprocessing data...")
     logging.info(f"Preprocessing steps: {preprocessing.named_steps}")
-    X_train = preprocessing.fit_transform(X_train).astype(np.float32)
-    X_test = preprocessing.fit_transform(X_test).astype(np.float32)
+    X_train = preprocessing.fit_transform(X_train.astype(np.float32))
+    X_test = preprocessing.fit_transform(X_test.astype(np.float32))
     logging.info(f"Shapes after preprocessing - X_train: {X_train.shape} - X_test: {X_test.shape}")
 
     ###
