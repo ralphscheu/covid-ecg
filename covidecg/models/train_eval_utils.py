@@ -41,7 +41,7 @@ def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeli
     if conf['features'] == 'plain_signal':
         pass
     if conf['features'] == 'signal_image':
-        preprocessing.steps.append(('convert_signal_to_image', feature_utils.EcgSignalToImageConverter()))
+        preprocessing.steps.append(('convert_signal_to_image', feature_utils.EcgSignalToImageConverter(vertical_resolution=conf['signal_image_vertical_resolution'])))
 
         if conf['model'] == 'vgg16':
             preprocessing.steps.append(('grayscale_to_rgb', FunctionTransformer(data_utils.grayscale_to_rgb)))

@@ -197,7 +197,7 @@ class EcgLfccFeatsExtractor(BaseEstimator, TransformerMixin):
 
 
 class EcgSignalToImageConverter(BaseEstimator, TransformerMixin):
-    def __init__(self, vertical_resolution=200):
+    def __init__(self, vertical_resolution):
         self.vertical_resolution = vertical_resolution
 
     def fit(self, x:np.ndarray, y=None):
@@ -214,13 +214,15 @@ class EcgSignalToImageConverter(BaseEstimator, TransformerMixin):
         """
         out = []
         for recording in x:
-            # scale signal into fixed value range (= height of output images)
+            # scale signal into fixed value range (0 -- vertical_resolution-1)
             scaled = np.stack([np.interp(lead, (lead.min(), lead.max()), (0, self.vertical_resolution - 1)) for lead in recording])
-            # round values back to integers after scaling
+            # print("scaled:", scaled.shape)
+            # round values from float back to integers after scaling
             scaled = np.round(scaled)
             # recordings_scaled.append(scaled)
             # do one-hot encoding along time axis to place black pixels according to given values
             out.append( np.stack([pd.get_dummies(lead).T.reindex(range(self.vertical_resolution), fill_value=0).to_numpy() for lead in scaled]) )
+            # print("out:", len(out), out[0].shape)
         out = np.stack(out)
         # recordings_scaled = np.stack(recordings_scaled)
         # flip in y direction to fix orientation

@@ -63,6 +63,7 @@ test_environment:
 ## Make Dataset
 data:
 	
+#	extract all recordings for postcovid patient group
 	rm -rf data/interim/recordings_postcovid
 	mkdir data/interim/recordings_postcovid
 	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
@@ -70,6 +71,7 @@ data:
 		--patients-list data/raw/patients_postcovid.csv \
 		data/raw/ecg_export_postcovid data/interim/recordings_postcovid
 	
+#	extract all recordings for control group
 	rm -rf data/interim/recordings_ctrl
 	mkdir data/interim/recordings_ctrl
 	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
@@ -156,7 +158,7 @@ train_cnn1d:
 
 train_vgg16:
 #	VGG16 on signal images
-	for exp_name in covid-postcovid-img covid-ctrl-img postcovid-ctrl-img ; do \
+	for exp_name in postcovid-ctrl-img ; do \
 		${PYTHON_INTERPRETER} train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-vgg16.yaml ; \
