@@ -24,7 +24,6 @@ from io import StringIO
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import SMOTE
 from collections import Counter
-import random
 import imblearn.pipeline
 import torchvision.models
 import matplotlib.pyplot as plt
@@ -37,28 +36,28 @@ def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeli
 
     if conf['ecg_leads'] != 'all':
         preprocessing.steps.append(('select_ecg_lead', data_utils.EcgLeadSelector(conf['ecg_leads'])))
-
     if conf['features'] == 'plain_signal':
+        # no need to do anything - use signal value arrays as-is
         pass
     if conf['features'] == 'signal_image':
+
+        # convert from array of signal values to 2D grayscale image of signal curve
         preprocessing.steps.append(('convert_signal_to_image', feature_utils.EcgSignalToImageConverter(vertical_resolution=conf['signal_image_vertical_resolution'])))
 
-        if conf['model'] == 'vgg16':
+        if conf['model'] in ['vgg16', 'resnet18']:
+            # convert from single channel grayscale to 3-channel RGB image representation
             preprocessing.steps.append(('grayscale_to_rgb', FunctionTransformer(data_utils.grayscale_to_rgb)))
-            # convert to torch.Tensor for vgg16 image preprocessing
+            # convert to torch.Tensor for pretrained model image transforms
             preprocessing.steps.append(('to_tensor', FunctionTransformer(torch.from_numpy)))
-            # apply preprocessing transforms for vgg16 input
-            preprocessing.steps.append(('vgg16_image_preprocessing', FunctionTransformer(torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES.transforms())))
+
+            # apply image transforms specific to pretrained model
+            if conf['model'] == 'vgg16':
+                preprocessing.steps.append(('vgg16_image_preprocessing', FunctionTransformer(torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES.transforms())))
+            elif conf['model'] == 'resnet18':
+                preprocessing.steps.append(('resnet18_image_preprocessing', FunctionTransformer(torchvision.models.ResNet18_Weights.IMAGENET1K_V1.transforms())))
+
             # convert back to numpy array
             preprocessing.steps.append(('to_numpy', FunctionTransformer(lambda x_tensor: x_tensor.detach().cpu().numpy())))
-
-        if conf['model'] == 'resnet18':
-            preprocessing.steps.append(('grayscale_to_rgb', FunctionTransformer(data_utils.grayscale_to_rgb)))
-            # convert to torch.Tensor for resnet18 image preprocessing
-            preprocessing.steps.append(('to_tensor', FunctionTransformer(torch.from_numpy)))
-            # apply preprocessing transforms for resnet18 input
-            preprocessing.steps.append(('resnet18_image_preprocessing', FunctionTransformer(torchvision.models.ResNet18_Weights.IMAGENET1K_V1.transforms())))
-            # convert back to numpy array
     
     elif conf['features'] == 'lfcc':
         preprocessing.steps.append(('extract_lfcc', feature_utils.EcgLfccFeatsExtractor(sampling_rate=sampling_rate)))
