@@ -13,7 +13,7 @@ import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder
 import skorch
 from skorch.callbacks import EpochScoring, EarlyStopping
-from covidecg.models.models import MLP, CNN2D, CNN1D, VGG16Classifier, ResNet18Classifier, LSTM
+from covidecg.models.models import MLP, CNN2D, CNN1D, VGG16Classifier, ResNet18Classifier, LSTM, CNN2DImage
 import mlflow
 import torch.nn as nn
 import sklearn.metrics
@@ -136,6 +136,8 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
         clf = skorch.NeuralNetClassifier(module=MLP, module__input_size=X_train[0].size, **skorch_clf_common_params)
     elif conf['model'] == 'cnn2d':
         clf = skorch.NeuralNetClassifier(module=CNN2D, **skorch_clf_common_params)
+    elif conf['model'] == 'cnn2dimage':
+        clf = skorch.NeuralNetClassifier(module=CNN2DImage, module__signal_image_vertical_resolution=conf['signal_image_vertical_resolution'] **skorch_clf_common_params)
     elif conf['model'] == 'cnn1d':
         clf = skorch.NeuralNetClassifier(module=CNN1D, **skorch_clf_common_params)
     elif conf['model'] == 'lstm':

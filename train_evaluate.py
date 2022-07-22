@@ -69,9 +69,6 @@ def run_experiment(exp_config, model_config):
     X_test = preprocessing.fit_transform(X_test.astype(np.float32))
     logging.info(f"Shapes after preprocessing - X_train: {X_train.shape} - X_test: {X_test.shape}")
     
-    import sys
-    sys.exit(0)
-    
     ###
 
     mlflow.sklearn.autolog()

@@ -156,6 +156,15 @@ train_cnn1d:
 	done
 
 
+train_cnn2dimage:
+#	CNN2D on signal images
+	for exp_name in postcovid-ctrl-img; do \
+		${PYTHON_INTERPRETER} ./train_evaluate.py \
+			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
+			--model-config ./exp_configs/model-cnn2dimage.yaml ; \
+	done
+	
+
 train_vgg16:
 #	VGG16 on signal images
 	for exp_name in postcovid-ctrl-img ; do \

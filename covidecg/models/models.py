@@ -32,7 +32,7 @@ class MLP(nn.Module):
 
 
 '''
-    CNN 2D ( leads x time )
+    CNN 2D ( 1(channels) x leads(height) x time(width) )
 '''
 class CNN2D(nn.Module):
 
@@ -63,6 +63,42 @@ class CNN2D(nn.Module):
         '''Forward pass'''
         x = x.reshape(x.shape[0], 12, -1)  # undo channel flattening
         return self.layers(x[:, np.newaxis, :, :])
+
+
+'''
+    CNN2DImage ( leads(channels) x signal_image_vertical_resolution(height) x time(width) )
+'''
+class CNN2DImage(nn.Module):
+
+    def __init__(self, dense_hidden_size, signal_image_vertical_resolution):
+        super().__init__()
+        self.signal_image_vertical_resolution = signal_image_vertical_resolution
+
+        self.layers = nn.Sequential(
+            nn.Conv2d(in_channels=12, out_channels=32, kernel_size=(3, 10), stride=(1, 2), padding=(1,4)),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 3)),
+            
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 10), stride=(1, 2), padding=(0, 4)),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 3)),
+            
+            nn.Conv2d(in_channels=64, out_channels=96, kernel_size=(3, 10), stride=(1, 2), padding=(1, 4)),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 3)),
+            nn.Dropout(0.5),
+            
+            nn.Flatten(),
+            nn.LazyLinear(dense_hidden_size),  # automatically infers input shape
+            nn.LazyLinear(dense_hidden_size // 2),
+            nn.LazyLinear(2),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        '''Forward pass'''
+        x = x.reshape(x.shape[0], 12, self.signal_image_vertical_resolution, -1)  # undo channel flattening
+        return self.layers(x.float())
 
 
 '''
