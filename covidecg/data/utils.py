@@ -22,13 +22,12 @@ def load_runs(runs_list, root_dir, min_length=5000, max_length=5000, return_pat_
     """ Load raw ECG Signals from runs dir """
     
     runs_list = runs_list.loc[runs_list.ecg_length >= min_length]
-    runs_list = runs_list.loc[runs_list.ecg_length <= max_length]
     
     signals, targets, pat_ids = [], [], []
     for i in range(len(runs_list.index)):        
         signal_path = os.path.join(root_dir, runs_list.iloc[i]['recording'] + '.csv')
         signal = load_signal(signal_path)
-        signals.append(signal)
+        signals.append(signal[:, 0:max_length])  # if longer than max_length, cut off everything afterwards
         targets.append(runs_list.iloc[i]['pat_group'])
         pat_ids.append(runs_list.iloc[i]['pat_id'])
     
