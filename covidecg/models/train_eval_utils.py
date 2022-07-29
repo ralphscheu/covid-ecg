@@ -41,7 +41,7 @@ def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeli
         pass
     if conf['features'] == 'signal_image':
         # convert from array of signal values to 2D grayscale image of signal curve
-        preprocessing.steps.append(('convert_signal_to_image', feature_utils.EcgSignalToImageConverter(vertical_resolution=conf['signal_image_vertical_resolution'])))
+        preprocessing.steps.append(('convert_signal_to_image', feature_utils.EcgSignalToImageConverter(height=conf['signal_image_height'], width=conf['signal_image_width'])))
     elif conf['features'] == 'lfcc':
         preprocessing.steps.append(('extract_lfcc', feature_utils.EcgLfccFeatsExtractor(sampling_rate=sampling_rate)))
     elif conf['features'] == 'peaks':
@@ -55,19 +55,11 @@ def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeli
                                         feature_utils.EcgIntervalsFeatsExtractor(sampling_rate=sampling_rate))))
 
     if conf['model'] in ['vgg16', 'resnet18']:
-        # convert from single channel grayscale to 3-channel RGB image representation
-        preprocessing.steps.append(('grayscale_to_rgb', FunctionTransformer(data_utils.grayscale_to_rgb)))
-        # convert to torch.Tensor for pretrained model image transforms
-        preprocessing.steps.append(('to_tensor', FunctionTransformer(torch.from_numpy)))
-
         # apply image transforms specific to pretrained model
         if conf['model'] == 'vgg16':
-            preprocessing.steps.append(('vgg16_image_preprocessing', FunctionTransformer(torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES.transforms())))
+            preprocessing.steps.append(('vgg16_image_preprocessing', data_utils.PretrainedModelApplyTransforms(torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES.transforms())))
         elif conf['model'] == 'resnet18':
             preprocessing.steps.append(('resnet18_image_preprocessing', FunctionTransformer(torchvision.models.ResNet18_Weights.IMAGENET1K_V1.transforms())))
-
-        # convert back to numpy array
-        preprocessing.steps.append(('to_numpy', FunctionTransformer(lambda x_tensor: x_tensor.detach().cpu().numpy())))
 
     if conf['flatten_leads']:
         preprocessing.steps.append(('flatten_leads', FunctionTransformer(data_utils.flatten_leads)))

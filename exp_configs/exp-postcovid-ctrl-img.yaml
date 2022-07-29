@@ -6,6 +6,7 @@ samples_list:
 ecg_type: stress
 ecg_leads: all  # MDC_ECG_LEAD_II
 features: signal_image
-signal_image_vertical_resolution: 100
+signal_image_width: 1200
+signal_image_height: 1200
 flatten_leads: yes
 imbalance_mitigation: smote  # smote | random_undersampling | criterion_weights

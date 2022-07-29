@@ -5,6 +5,9 @@ import numpy as np
 import sklearn.preprocessing
 import sklearn.pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
+import torch
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 ##########################################################
@@ -60,7 +63,18 @@ def flatten_leads(x):
 
 
 def grayscale_to_rgb(x):
-    return np.repeat(x, 3, axis=1)
+    """Convert single-channel grayscale image to RGB by copying values
+
+    Args:
+        x (np.ndarray): Input image of shape (n, height, width)
+
+    Returns:
+        _type_: _description_
+    """
+    x = x[:, np.newaxis, :, :]  # (n, color channels, height, width)
+    x = np.repeat(x, 3, axis=1)
+    print("grayscale_to_rgb:", x.shape)
+    return x
 
 
 ##########################################################
@@ -119,3 +133,21 @@ class EcgSignalCleaner(BaseEstimator, TransformerMixin):
             cleaned_signals.append(cleaned_lead_signal)
         cleaned_signals = np.stack(cleaned_signals, axis=1)  # to numpy array
         return cleaned_signals.astype(np.float32)
+
+class PretrainedModelApplyTransforms(BaseEstimator, TransformerMixin):
+    def __init__(self, transforms_fn):
+        self.transforms_fn = transforms_fn
+    
+    def fit(self, x, y=None):
+        return self
+    
+    def transform(self, x):
+        transformed_images = [self.transforms_fn(torch.from_numpy(image)).cpu().numpy() for image in tqdm(x, "Apply image transforms for pre-trained model")]
+        transformed_images = np.stack(transformed_images)  # to numpy array
+        
+        plt.figure()
+        plt.imshow(transformed_images[0, 0], cmap='binary')
+        plt.gcf().canvas.draw()
+        plt.savefig('./data/processed/example_input_for_vgg16.png')
+        
+        return transformed_images.astype(np.float32)

@@ -8,6 +8,9 @@ from sklearn.base import BaseEstimator, TransformerMixin
 import spafe.features.lfcc
 import biosppy.signals.tools
 import biosppy.signals.ecg as ecg
+import matplotlib.pyplot as plt
+import cv2
+from tqdm import tqdm
 
 
 ##########################################################
@@ -197,11 +200,56 @@ class EcgLfccFeatsExtractor(BaseEstimator, TransformerMixin):
 
 
 class EcgSignalToImageConverter(BaseEstimator, TransformerMixin):
-    def __init__(self, vertical_resolution):
-        self.vertical_resolution = vertical_resolution
+    def __init__(self, height, width, dpi=96):
+        self.height = height
+        self.width = width
+        self.dpi = dpi
 
     def fit(self, x:np.ndarray, y=None):
         return self
+    
+    def get_lead_signal_img(self, lead_signal:np.ndarray, crop_horizontal_padding:int=0):
+        
+        # Make a line plot...
+        lead_img_height = self.height // 12
+        # print("lead_img_height:", lead_img_height)
+        fig = plt.figure(figsize=(self.width / self.dpi, lead_img_height / self.dpi), dpi=self.dpi)
+        fig.gca().plot(lead_signal, linewidth=.6, c='black')
+        fig.tight_layout(pad=0)
+        plt.axis('off')
+
+        # trigger canvas drawing...
+        fig.canvas.draw()
+        plt.savefig('./data/processed/lead_signal.png')
+
+        # Now we can save it to a numpy array.
+        lead_signal_image = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8) 
+        
+        # close figure to prevent memory leak
+        plt.close()
+        
+        lead_signal_image = lead_signal_image.reshape(fig.canvas.get_width_height()[::-1] + (3,)) 
+        # print("lead_signal_image.shape", lead_signal_image.shape)
+        assert len(np.unique(lead_signal_image[:, :, 0])) > 1  # make sure not all pixels have the same value (otherwise something went wrong)
+
+        # Crop the image
+        lead_signal_image = ~lead_signal_image
+        # print("lead_signal_image.shape before cropping:", lead_signal_image.shape)
+        # print("lead_signal_image[:, :, 0].shape", lead_signal_image[:, :, 0].shape)
+        nonzero_coords = cv2.findNonZero(lead_signal_image[:, :, 0]) # Find all non-zero points
+        x, y, w, h = cv2.boundingRect(nonzero_coords) # Find minimum spanning bounding box
+        lead_signal_image = lead_signal_image[:, x - crop_horizontal_padding:x + w + crop_horizontal_padding, :]
+        # print("lead_signal_image.shape after cropping:", lead_signal_image.shape)
+        lead_signal_image = ~lead_signal_image
+        ###
+        
+        lead_signal_image = cv2.resize(lead_signal_image, (self.width, lead_img_height))
+        # print("lead_signal_image after cropping and resizing:", lead_signal_image.shape)
+        
+        # print("lead_signal_image.shape as returned:", lead_signal_image.shape)
+        
+        return lead_signal_image
+
 
     def transform(self, x:np.ndarray) -> np.ndarray:
         """Convert signal values in x to image representation of ECG signal
@@ -213,19 +261,25 @@ class EcgSignalToImageConverter(BaseEstimator, TransformerMixin):
             out (np.ndarray): Output array of shape (n_samples, leads, y_resolution, timesteps)
         """
         out = []
-        for recording in x:
-            # scale signal into fixed value range (0 -- vertical_resolution-1)
-            scaled = np.stack([np.interp(lead, (lead.min(), lead.max()), (0, self.vertical_resolution - 1)) for lead in recording])
-            # print("scaled:", scaled.shape)
-            # round values from float back to integers after scaling
-            scaled = np.round(scaled)
-            # recordings_scaled.append(scaled)
-            # do one-hot encoding along time axis to place black pixels according to given values
-            out.append( np.stack([pd.get_dummies(lead).T.reindex(range(self.vertical_resolution), fill_value=0).to_numpy() for lead in scaled]) )
-            # print("out:", len(out), out[0].shape)
-        out = np.stack(out)
-        # recordings_scaled = np.stack(recordings_scaled)
-        # flip in y direction to fix orientation
-        out = np.flip(out, axis=2)
-        print("[EcgSignalToImageConverter] out.shape:", out.shape)
+        
+        for recording in tqdm(x, "Convert recordings to signal images"):
+            # print("recording:", recording.shape)
+            
+            recording_image = np.concatenate([self.get_lead_signal_img(recording[lead_i, :]) for lead_i in range(recording.shape[0])], axis=0)
+            # print("recording_image.shape", recording_image.shape)
+            out.append(recording_image)
+        
+        out = np.stack(out)    
+        # print("out:", out.shape)
+        
+        plt.figure(figsize=(self.width / self.dpi, self.height / self.dpi), dpi=self.dpi)
+        plt.imshow(out[0], cmap='binary')
+        plt.gcf().canvas.draw()
+        plt.savefig('./data/processed/example_signal_to_image.png')
+        
+        out = np.moveaxis(out, 3, 1)  # convert to channel-first representation for PyTorch processing
+        
+        # np.save("./outputs/EcgSignalToImageConverter__out.npy", out)
+        print("EcgSignalToImageConverter__out.shape:", out.shape)
+        
         return out    
