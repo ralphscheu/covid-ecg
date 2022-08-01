@@ -114,7 +114,7 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
         'criterion': nn.CrossEntropyLoss,
         'criterion__weight': class_weight,
         'callbacks': [
-            EpochScoring(scoring='roc_auc', lower_is_better=False),  # additional scores to observe
+            EpochScoring(name='valid_auc', scoring='roc_auc', on_train=False, lower_is_better=False),  # additional scores to observe
             EarlyStopping(patience=conf['early_stopping_patience'])  # Early Stopping based on validation loss
             ],
         'max_epochs': conf['early_stopping_max_epochs'],
