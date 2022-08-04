@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch.functional as F
 import torch.nn as nn
@@ -138,9 +139,12 @@ class CNN1D(nn.Module):
 '''
     ECG Image classification model using VGG16 for feature extraction and FC layers for classification
 '''
-class VGG16Classifier(nn.Module):
+class PretrainedVGG16Classifier(nn.Module):
     def __init__(self):
         super().__init__()
+        
+        # specify download location for pretrained weights
+        os.environ['TORCH_HOME'] = './.torch'
         vgg16_pretrained = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES)
         
         self.feature_extractor = nn.Sequential(
@@ -170,7 +174,7 @@ class VGG16Classifier(nn.Module):
 '''
     ECG Image classification model using VGG16 for feature extraction and FC layers for classification
 '''
-class ResNet18Classifier(nn.Module):
+class PretrainedResNet18Classifier(nn.Module):
     def __init__(self):
         super().__init__()
         resnet18_pretrained = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.IMAGENET1K_V1)

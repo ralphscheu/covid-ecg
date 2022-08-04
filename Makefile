@@ -55,12 +55,12 @@ data:
 
 
 #	concatenate recordings of the same session together
-	$(PYTHON_INTERPRETER) covidecg/data/concat_recordings_per_session.py \
-		--recordings-list data/interim/recordings_postcovid.csv \
+	python3 covidecg/data/concat_recordings_per_session.py \
+		--recordings-list data/interim/recordings_stress_ecg_postcovid.csv \
 		data/interim/recordings_postcovid data/interim/fullsessions_postcovid
 
-	$(PYTHON_INTERPRETER) covidecg/data/concat_recordings_per_session.py \
-		--recordings-list data/interim/recordings_ctrl.csv \
+	python3 covidecg/data/concat_recordings_per_session.py \
+		--recordings-list data/interim/recordings_stress_ecg_ctrl.csv \
 		data/interim/recordings_ctrl data/interim/fullsessions_ctrl
 
 

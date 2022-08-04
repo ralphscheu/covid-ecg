@@ -20,7 +20,7 @@ def load_signal(filepath):
 
 def load_runs(runs_list, root_dir, min_length=5000, max_length=5000, return_pat_ids=True):
     """ Load raw ECG Signals from runs dir """
-    
+    runs_list = pd.read_csv(runs_list, sep=';')
     runs_list.recording_date = pd.to_datetime(runs_list.recording_date)
     runs_list.pat_diagnosis_date = pd.to_datetime(runs_list.pat_diagnosis_date)
     runs_list['date_diff'] = runs_list.recording_date - runs_list.pat_diagnosis_date  # compute time between ECG recording and diagnosis date (at 12am since we don't have wall time for diagnosis)
@@ -57,20 +57,6 @@ def load_runs(runs_list, root_dir, min_length=5000, max_length=5000, return_pat_
         return np.stack(signals).astype(np.float32), np.array(targets), np.array(pat_ids)
     else:
         return np.stack(signals).astype(np.float32), np.array(targets)
-
-def load_all_runs(runs_csv, root_dir):
-    runs_list = pd.read_csv(runs_csv, sep=';')
-    return load_runs(runs_list, root_dir)
-
-def load_stress_ecg_runs(runs_csv, root_dir):
-    runs_list = pd.read_csv(runs_csv, sep=';')
-    runs_list = runs_list.loc[runs_list.ecg_type == 'Belastungs']
-    return load_runs(runs_list, root_dir)
-
-def load_rest_ecg_runs(runs_csv, root_dir):
-    runs_list = pd.read_csv(runs_csv, sep=';')
-    runs_list = runs_list.loc[runs_list.ecg_type == 'Ruhe']
-    return load_runs(runs_list, root_dir)
 
 
 def flatten_leads(x):
@@ -133,6 +119,7 @@ class EcgSignalCleaner(BaseEstimator, TransformerMixin):
             cleaned_signals.append(cleaned_lead_signal)
         cleaned_signals = np.stack(cleaned_signals, axis=1)  # to numpy array
         return cleaned_signals.astype(np.float32)
+
 
 class PretrainedModelApplyTransforms(BaseEstimator, TransformerMixin):
     def __init__(self, transforms_fn):

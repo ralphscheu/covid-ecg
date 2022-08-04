@@ -122,8 +122,14 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
                 ]
             )
 
-    # save ECG recordings metadata
-    recording_list.to_csv(f'data/interim/recordings_{prefix}.csv', sep=';', index=False)
+    # save stress ECG recordings metadata
+    recordings_stress_ecg = recording_list.loc[recording_list.ecg_type == 'Belastungs']
+    recordings_stress_ecg.to_csv(f'data/interim/recordings_stress_ecg_{prefix}.csv', sep=';', index=False)
+    
+    # save rest ECG recordings metadata
+    recordings_rest_ecg = recording_list.loc[recording_list.ecg_type == 'Ruhe']
+    recordings_rest_ecg.to_csv(f'data/interim/recordings_rest_ecg_{prefix}.csv', sep=';', index=False)
+    
     logger.info(f'Done. Saved csv files to {output_dir}')
 
 

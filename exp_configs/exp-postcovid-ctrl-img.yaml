@@ -1,12 +1,9 @@
 # input data
 root_dir: ./data/interim/recordings
 samples_list:
-  - ./data/interim/recordings_postcovid.csv
-  - ./data/interim/recordings_ctrl.csv
-ecg_type: stress
-ecg_leads: all
+  - ./data/interim/recordings_stress_ecg_postcovid.csv
+  - ./data/interim/recordings_stress_ecg_ctrl.csv
 features: signal_image
 signal_image_width: 480
 signal_image_height: 480
-flatten_leads: yes
 imbalance_mitigation: smote  # smote | random_undersampling | criterion_weights

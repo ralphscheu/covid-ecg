@@ -8,12 +8,11 @@ import yaml
 import covidecg.data.utils as data_utils
 import covidecg.features.utils as feature_utils
 from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearchCV, GroupShuffleSplit, GroupKFold
-from covidecg.models.lstm_attn import Attention, Encoder, Classifier
 import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder
 import skorch
 from skorch.callbacks import EpochScoring, EarlyStopping
-from covidecg.models.models import MLP, CNN2D, CNN1D, VGG16Classifier, ResNet18Classifier, LSTM, CNN2DImage
+from covidecg.models.models import MLP, CNN2D, CNN1D, PretrainedVGG16Classifier, PretrainedResNet18Classifier
 import mlflow
 import torch.nn as nn
 import sklearn.metrics
@@ -27,15 +26,30 @@ import imblearn.pipeline
 import torchvision.models
 import matplotlib.pyplot as plt
 from typing import Tuple
+# import torchinfo
 
 
-def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeline.Pipeline:
+def load_exp_model_conf(exp_conf_path, model_conf_path):
+    with open(exp_conf_path) as f:
+        conf_str = '### EXPERIMENT CONFIG ###\n'
+        conf_str += f.read()
+        conf = yaml.safe_load(conf_str)
+    with open(model_conf_path) as f:
+        conf_str += '\n\n### MODEL CONFIG ###\n'
+        conf_str += f.read()
+        conf = {**conf, **yaml.safe_load(conf_str)}  # combine exp and model configs into single dict
+        
+    mlflow.log_text(conf_str, 'exp_model_conf.yaml')
+    return conf
+
+
+def build_preprocessing_pipeline(conf:dict, sampling_rate:int=500) -> sklearn.pipeline.Pipeline:
     """ Build data pre-processing pipeline for feature extraction """
+    
+    mlflow.set_tags({'features': conf['features']})
 
     preprocessing = sklearn.pipeline.Pipeline([('clean_signal', data_utils.EcgSignalCleaner())])
 
-    if conf['ecg_leads'] != 'all':
-        preprocessing.steps.append(('select_ecg_lead', data_utils.EcgLeadSelector(conf['ecg_leads'])))
     if conf['features'] == 'plain_signal':
         # no need to do anything - use signal value arrays as-is
         pass
@@ -61,24 +75,27 @@ def build_preprocessing_pipeline(conf:dict, sampling_rate:int) -> sklearn.pipeli
         elif conf['model'] == 'resnet18':
             preprocessing.steps.append(('resnet18_image_preprocessing', FunctionTransformer(torchvision.models.ResNet18_Weights.IMAGENET1K_V1.transforms())))
 
-    if conf['flatten_leads']:
-        preprocessing.steps.append(('flatten_leads', FunctionTransformer(data_utils.flatten_leads)))
+    preprocessing.steps.append(('flatten_leads', FunctionTransformer(data_utils.flatten_leads)))
 
     return preprocessing
 
 
-def load_dataset(samples_list:list, root_dir:Path, ecg_type:str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, LabelEncoder]:
+def preprocess_data(pipeline, X_train, X_test):    
+    logging.info("Preprocessing data...")
+    logging.info(f"Preprocessing steps: {pipeline.named_steps}")
+    X_train = pipeline.fit_transform(X_train.astype(np.float32))
+    X_test = pipeline.fit_transform(X_test.astype(np.float32))
+    logging.info(f"Shapes after preprocessing - X_train: {X_train.shape} - X_test: {X_test.shape}")
+    return X_train, X_test
+
+
+def load_dataset(samples_list:list, root_dir:Path,) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, LabelEncoder]:
     """ Load dataset and encode targets to numerical """
-    
+
+    logging.info("Loading dataset...")
     logging.info(f"Samples list: {samples_list}")
-    if ecg_type == 'stress':
-        X_class0, y_class0, pat_ids_class0 = data_utils.load_stress_ecg_runs(samples_list[0], root_dir)
-        X_class1, y_class1, pat_ids_class1 = data_utils.load_stress_ecg_runs(samples_list[1], root_dir)
-    elif ecg_type == 'rest':
-        X_class0, y_class0, pat_ids_class0 = data_utils.load_rest_ecg_runs(samples_list[0], root_dir)
-        X_class1, y_class1, pat_ids_class0 = data_utils.load_rest_ecg_runs(samples_list[1], root_dir)
-    else:
-        raise Exception(f"Found invalid value '{ecg_type}' for ecg_type in experiment configuration! (stress|rest)")
+    X_class0, y_class0, pat_ids_class0 = data_utils.load_runs(samples_list[0], root_dir)
+    X_class1, y_class1, pat_ids_class1 = data_utils.load_runs(samples_list[1], root_dir)
 
     X = np.concatenate((X_class0, X_class1))
     y = np.concatenate((y_class0, y_class1))
@@ -98,7 +115,11 @@ def load_dataset(samples_list:list, root_dir:Path, ecg_type:str) -> Tuple[np.nda
 def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.pipeline.Pipeline:
     """ Configure model and optimizer according to configuration files """
     
+    logging.info("Building model...")
     logging.info(f"Applying {conf['imbalance_mitigation']} to mitigate class imbalance in training data...")
+    
+    mlflow.set_tags({'imbalance_mitigation': conf['imbalance_mitigation'], 
+                     'model': conf['model']})
 
     # compute class weights for loss function if desired
     if conf['imbalance_mitigation'] == 'criterion_weights':
@@ -132,25 +153,10 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
         clf = skorch.NeuralNetClassifier(module=CNN2DImage, **skorch_clf_common_params)
     elif conf['model'] == 'cnn1d':
         clf = skorch.NeuralNetClassifier(module=CNN1D, **skorch_clf_common_params)
-    elif conf['model'] == 'lstm':
-        clf = skorch.NeuralNetClassifier(module=LSTM, module__input_size=12, **skorch_clf_common_params)
-    elif conf['model'] == 'lstmattn':
-        bidirectional = True
-        hidden_size = 250
-        n_layers_rnn = 2
-        
-        rnn_encoder = Encoder(embedding_dim=12, hidden_dim=hidden_size, nlayers=n_layers_rnn, bidirectional=bidirectional)
-        
-        attention_dim = hidden_size if not bidirectional else 2 * hidden_size
-        attention = Attention(attention_dim, attention_dim, attention_dim)
-        
-        model = Classifier(encoder=rnn_encoder, attention=attention, hidden_dim=attention_dim, num_classes=2)
-        
-        clf = skorch.NeuralNetClassifier(module=model, **skorch_clf_common_params)
     elif conf['model'] == 'vgg16':
-       clf = skorch.NeuralNetClassifier(module=VGG16Classifier, **skorch_clf_common_params)
+       clf = skorch.NeuralNetClassifier(module=PretrainedVGG16Classifier, **skorch_clf_common_params)
     elif conf['model'] == 'resnet18':
-        clf = skorch.NeuralNetClassifier(module=ResNet18Classifier, **skorch_clf_common_params)
+        clf = skorch.NeuralNetClassifier(module=PretrainedResNet18Classifier, **skorch_clf_common_params)
 
     # add under/oversampling steps to model pipeline if desired
     if conf['imbalance_mitigation'] == 'smote':
@@ -161,6 +167,8 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
         pipe = imblearn.pipeline.Pipeline([('clf', clf)])
     else:
         raise f"Invalid value {conf['imbalance_mitigation']} for imbalance_mitigation!"
+    
+    logging.info(f"Model pipeline:\n{pipe}")
 
     return pipe
 
@@ -182,3 +190,7 @@ def evaluate_experiment(X_test:np.ndarray, y_true:np.ndarray, y_encoder:LabelEnc
     plt.plot(gs.best_estimator_.steps[-1][1].history[:, 'valid_loss'], label='valid loss')
     plt.legend()
     mlflow.log_figure(loss_fig, 'train_valid_loss.png')
+    
+    # Store model summary of best model in MLFlow
+    mlflow.log_text(str(gs.best_estimator_.steps[-1][1].module_), 'model_topology.txt')
+    # mlflow.log_text(str(torchinfo.summary(gs.best_estimator_.module, input_size=(gs.best_params_['batch_size'], *X_train.shape[1:]))), 'best_model_summary.txt')
