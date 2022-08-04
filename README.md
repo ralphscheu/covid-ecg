@@ -1,57 +1,23 @@
 covid-ecg
 ==============================
 
-A short description of the project.
+## Data structure and naming scheme
+- **recordings**: A recorded continuos ECG snippet of e.g. 10s length.
+- **sessions**: There are one ore more sessions available for each patient. One session can consist of one or more snippets of typically 10s length which were recorded shortly after another.
 
-Project Organization
-------------
+## Set up environment variables
+Some environment variables are being read from a `.env` file.
+Create `./.env` in the repository root and provide the following variables according to your setup:
+```
+LOG_LEVEL=INFO
+SAMPLING_RATE=500
+PROJECT_ROOT=~/covid-ecg
+CUBLAS_WORKSPACE_CONFIG=:4096:8
+CUDA_VISIBLE_DEVICES=0
+```
 
-    ├── LICENSE
-    ├── Makefile           <- Makefile with commands like `make data` or `make train`
-    ├── README.md          <- The top-level README for developers using this project.
-    ├── data
-    │   ├── external       <- Data from third party sources.
-    │   ├── interim        <- Intermediate data that has been transformed.
-    │   ├── processed      <- The final, canonical data sets for modeling.
-    │   └── raw            <- The original, immutable data dump.
-    │
-    ├── docs               <- A default Sphinx project; see sphinx-doc.org for details
-    │
-    ├── models             <- Trained and serialized models, model predictions, or model summaries
-    │
-    ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-    │                         the creator's initials, and a short `-` delimited description, e.g.
-    │                         `1.0-jqp-initial-data-exploration`.
-    │
-    ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-    │
-    ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-    │   └── figures        <- Generated graphics and figures to be used in reporting
-    │
-    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-    │                         generated with `pip freeze > requirements.txt`
-    │
-    ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
-    ├── src                <- Source code for use in this project.
-    │   ├── __init__.py    <- Makes src a Python module
-    │   │
-    │   ├── data           <- Scripts to download or generate data
-    │   │   └── make_dataset.py
-    │   │
-    │   ├── features       <- Scripts to turn raw data into features for modeling
-    │   │   └── build_features.py
-    │   │
-    │   ├── models         <- Scripts to train models and then use trained models to make
-    │   │   │                 predictions
-    │   │   ├── predict_model.py
-    │   │   └── train_model.py
-    │   │
-    │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-    │       └── visualize.py
-    │
-    └── tox.ini            <- tox file with settings for running tox; see tox.readthedocs.io
-
-
---------
-
-<p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+## Run an experiment
+Example command:
+```
+CUDA_VISIBLE_DEVICES=0 python3 ./train_evaluate.py --exp-config ./exp_configs/exp-postcovid-ctrl-img.yaml --model-config ./exp_configs/model-vgg16.yaml
+```

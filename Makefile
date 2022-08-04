@@ -1,19 +1,11 @@
-.PHONY: clean data lint requirements features-medical features-lfcc features
+.PHONY: clean data lint requirements train
 
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
 
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-PROFILE = default
-PROJECT_NAME = covid-ecg
-PYTHON_INTERPRETER = python3
-
-ifeq (,$(shell which conda))
-HAS_CONDA=False
-else
-HAS_CONDA=True
-endif
+PROJECT_NAME = covidecg
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -21,8 +13,8 @@ endif
 
 ## Install Python Dependencies
 requirements: test_environment
-	$(PYTHON_INTERPRETER) -m pip install -U pip setuptools wheel
-	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
+	python3 -m pip install -U pip setuptools wheel
+	python3 -m pip install -r requirements.txt
 
 ## Delete all compiled Python files
 clean:
@@ -33,27 +25,9 @@ clean:
 lint:
 	flake8 covidecg
 
-## Set up python interpreter environment
-create_environment:
-ifeq (True,$(HAS_CONDA))
-		@echo ">>> Detected conda, creating conda environment."
-ifeq (3,$(findstring 3,$(PYTHON_INTERPRETER)))
-	conda create --name $(PROJECT_NAME) python=3
-else
-	conda create --name $(PROJECT_NAME) python=2.7
-endif
-		@echo ">>> New conda env created. Activate with:\nsource activate $(PROJECT_NAME)"
-else
-	$(PYTHON_INTERPRETER) -m pip install -q virtualenv virtualenvwrapper
-	@echo ">>> Installing virtualenvwrapper if not already installed.\nMake sure the following lines are in shell startup file\n\
-	export WORKON_HOME=$$HOME/.virtualenvs\nexport PROJECT_HOME=$$HOME/Devel\nsource /usr/local/bin/virtualenvwrapper.sh\n"
-	@bash -c "source `which virtualenvwrapper.sh`;mkvirtualenv $(PROJECT_NAME) --python=$(PYTHON_INTERPRETER)"
-	@echo ">>> New virtualenv created. Activate with:\nworkon $(PROJECT_NAME)"
-endif
-
 ## Test python environment is setup correctly
 test_environment:
-	$(PYTHON_INTERPRETER) test_environment.py
+	python3 test_environment.py
 
 #################################################################################
 # PROJECT RULES                                                                 #
@@ -66,7 +40,7 @@ data:
 #	extract all recordings for postcovid patient group
 	rm -rf data/interim/recordings_postcovid
 	mkdir data/interim/recordings_postcovid
-	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
+	python3 covidecg/data/extract_recordings.py \
 		--prefix postcovid \
 		--patients-list data/raw/patients_postcovid.csv \
 		data/raw/ecg_export_postcovid data/interim/recordings_postcovid
@@ -74,7 +48,7 @@ data:
 #	extract all recordings for control group
 	rm -rf data/interim/recordings_ctrl
 	mkdir data/interim/recordings_ctrl
-	$(PYTHON_INTERPRETER) covidecg/data/extract_recordings.py \
+	python3 covidecg/data/extract_recordings.py \
 		--prefix ctrl \
 		--patients-list data/raw/patients_ctrl.csv \
 		data/raw/ecg_export_ctrl data/interim/recordings_ctrl
@@ -106,14 +80,14 @@ data:
 train_mlp:
 #	MLP on plain signal
 	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
-		${PYTHON_INTERPRETER} ./train_evaluate.py \
+		python3 ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-mlp.yaml ; \
 	done
 
 #	MLP on LFCC features
 	for exp_name in covid-postcovid-lfcc covid-ctrl-lfcc postcovid-ctrl-lfcc ; do \
-		${PYTHON_INTERPRETER} ./train_evaluate.py \
+		python3 ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-mlp.yaml ; \
 	done
@@ -122,14 +96,14 @@ train_mlp:
 train_cnn2d:
 #	CNN2D on plain signal
 	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
-		${PYTHON_INTERPRETER} ./train_evaluate.py \
+		python3 ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-cnn2d.yaml ; \
 	done
 	
 #	CNN2D on LFCC features
 	for exp_name in covid-postcovid-lfcc covid-ctrl-lfcc postcovid-ctrl-lfcc ; do \
-		${PYTHON_INTERPRETER} ./train_evaluate.py \
+		python3 ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-cnn2d.yaml ; \
 	done
@@ -138,14 +112,14 @@ train_cnn2d:
 train_cnn1d:
 #	CNN1D on plain signal
 	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
-		${PYTHON_INTERPRETER} ./train_evaluate.py \
+		python3 ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-cnn1d.yaml ; \
 	done
 
 #	CNN1D on LFCC features
 	for exp_name in covid-postcovid-lfcc covid-ctrl-lfcc postcovid-ctrl-lfcc ; do \
-		${PYTHON_INTERPRETER} ./train_evaluate.py \
+		python3 ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-cnn1d.yaml ; \
 
@@ -155,7 +129,7 @@ train_cnn1d:
 train_cnn2dimage:
 #	CNN2D on signal images
 	for exp_name in postcovid-ctrl-img; do \
-		${PYTHON_INTERPRETER} ./train_evaluate.py \
+		python3 ./train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-cnn2dimage.yaml ; \
 	done
@@ -164,7 +138,7 @@ train_cnn2dimage:
 train_vgg16:
 #	VGG16 on signal images
 	for exp_name in postcovid-ctrl-img ; do \
-		${PYTHON_INTERPRETER} train_evaluate.py \
+		python3 train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-vgg16.yaml ; \
 	done
@@ -172,7 +146,7 @@ train_vgg16:
 train_resnet18:
 #	ResNet18 on signal images
 	for exp_name in covid-postcovid-img covid-ctrl-img postcovid-ctrl-img ; do \
-		${PYTHON_INTERPRETER} train_evaluate.py \
+		python3 train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-resnet18.yaml ; \
 	done
@@ -180,14 +154,14 @@ train_resnet18:
 train_lstm:
 #	LSTM on plain signal
 	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
-		${PYTHON_INTERPRETER} train_evaluate.py \
+		python3 train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-lstm.yaml ; \
 	done
 
 #	LSTM on LFCC features
 	for exp_name in covid-postcovid-lfcc covid-ctrl-lfcc postcovid-ctrl-lfcc ; do \
-		${PYTHON_INTERPRETER} train_evaluate.py \
+		python3 train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-lstm.yaml ; \
 	done
@@ -196,7 +170,7 @@ train_lstm:
 train_lstmattn:
 #	LSTM w/ Attention on plain signal
 	for exp_name in covid-postcovid-signal covid-ctrl-signal postcovid-ctrl-signal ; do \
-		${PYTHON_INTERPRETER} train_evaluate.py \
+		python3 train_evaluate.py \
 			--exp-config ./exp_configs/exp-$${exp_name}.yaml \
 			--model-config ./exp_configs/model-lstmattn.yaml ; \
 	done

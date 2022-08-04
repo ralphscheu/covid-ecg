@@ -3,6 +3,7 @@
 
 # external requirements
 torch
+torchvision
 scikit-learn
 neurokit2==0.1.7
 matplotlib
