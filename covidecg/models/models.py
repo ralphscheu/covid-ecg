@@ -66,38 +66,38 @@ class CNN2D(nn.Module):
 
 
 '''
-    CNN2DImage ( leads(channels) x signal_image_vertical_resolution(height) x time(width) )
+    CNN2DImage ( leads(channels) x height x width )
 '''
 class CNN2DImage(nn.Module):
 
-    def __init__(self, dense_hidden_size, signal_image_vertical_resolution):
+    def __init__(self, dense_hidden_size, img_size):
         super().__init__()
-        self.signal_image_vertical_resolution = signal_image_vertical_resolution
+        self.img_size = img_size
 
         self.layers = nn.Sequential(
-            nn.Conv2d(in_channels=12, out_channels=32, kernel_size=(3, 10), stride=(1, 2), padding=(1,4)),
+            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 3)),
+            nn.MaxPool2d(kernel_size=2, stride=2),
             
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 10), stride=(1, 2), padding=(0, 4)),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 3)),
+            nn.MaxPool2d(kernel_size=2, stride=2),
             
-            nn.Conv2d(in_channels=64, out_channels=96, kernel_size=(3, 10), stride=(1, 2), padding=(1, 4)),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(1, 5), stride=(1, 3)),
+            nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Dropout(0.5),
             
             nn.Flatten(),
             nn.LazyLinear(dense_hidden_size),  # automatically infers input shape
-            nn.LazyLinear(dense_hidden_size // 2),
-            nn.LazyLinear(2),
+            nn.Linear(dense_hidden_size, dense_hidden_size),
+            nn.Linear(dense_hidden_size, 2),
             nn.Softmax(dim=-1)
         )
 
     def forward(self, x):
         '''Forward pass'''
-        x = x.reshape(x.shape[0], 12, self.signal_image_vertical_resolution, -1)  # undo channel flattening
+        x = x.reshape(x.shape[0], 3, self.img_size, self.img_size)  # undo channel flattening
         return self.layers(x.float())
 
 
@@ -150,7 +150,7 @@ class VGG16Classifier(nn.Module):
         self.classifier = nn.Sequential(
             nn.Flatten(),            
             # Binary Classifier
-            nn.Linear(in_features=25088, out_features=4096),
+            nn.LazyLinear(out_features=4096),
             nn.ReLU(),
             nn.Dropout(p=0.5),
             nn.Linear(in_features=4096, out_features=4096),

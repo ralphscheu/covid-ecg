@@ -129,7 +129,7 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
     elif conf['model'] == 'cnn2d':
         clf = skorch.NeuralNetClassifier(module=CNN2D, **skorch_clf_common_params)
     elif conf['model'] == 'cnn2dimage':
-        clf = skorch.NeuralNetClassifier(module=CNN2DImage, module__signal_image_vertical_resolution=conf['signal_image_vertical_resolution'] **skorch_clf_common_params)
+        clf = skorch.NeuralNetClassifier(module=CNN2DImage, **skorch_clf_common_params)
     elif conf['model'] == 'cnn1d':
         clf = skorch.NeuralNetClassifier(module=CNN1D, **skorch_clf_common_params)
     elif conf['model'] == 'lstm':

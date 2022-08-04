@@ -4,9 +4,9 @@ samples_list:
   - ./data/interim/recordings_postcovid.csv
   - ./data/interim/recordings_ctrl.csv
 ecg_type: stress
-ecg_leads: all  # MDC_ECG_LEAD_II
+ecg_leads: all
 features: signal_image
-signal_image_width: 1200
-signal_image_height: 1200
+signal_image_width: 480
+signal_image_height: 480
 flatten_leads: yes
 imbalance_mitigation: smote  # smote | random_undersampling | criterion_weights

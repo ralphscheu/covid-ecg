@@ -274,12 +274,13 @@ class EcgSignalToImageConverter(BaseEstimator, TransformerMixin):
         
         plt.figure(figsize=(self.width / self.dpi, self.height / self.dpi), dpi=self.dpi)
         plt.imshow(out[0], cmap='binary')
+        plt.axis("off")
+        plt.tight_layout(pad=0)
         plt.gcf().canvas.draw()
         plt.savefig('./data/processed/example_signal_to_image.png')
         
         out = np.moveaxis(out, 3, 1)  # convert to channel-first representation for PyTorch processing
         
-        # np.save("./outputs/EcgSignalToImageConverter__out.npy", out)
         print("EcgSignalToImageConverter__out.shape:", out.shape)
         
         return out    
