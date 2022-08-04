@@ -73,29 +73,8 @@ def load_rest_ecg_runs(runs_csv, root_dir):
     return load_runs(runs_list, root_dir)
 
 
-def to_categorical(y, num_classes=2):
-    """ 1-hot encodes a tensor """
-    y = y.astype(int)
-    return np.eye(num_classes, dtype='uint8')[y]
-
-
 def flatten_leads(x):
     return x.reshape(x.shape[0], -1)
-
-
-def grayscale_to_rgb(x):
-    """Convert single-channel grayscale image to RGB by copying values
-
-    Args:
-        x (np.ndarray): Input image of shape (n, height, width)
-
-    Returns:
-        _type_: _description_
-    """
-    x = x[:, np.newaxis, :, :]  # (n, color channels, height, width)
-    x = np.repeat(x, 3, axis=1)
-    print("grayscale_to_rgb:", x.shape)
-    return x
 
 
 ##########################################################

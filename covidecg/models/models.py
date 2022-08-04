@@ -144,12 +144,11 @@ class VGG16Classifier(nn.Module):
         vgg16_pretrained = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.IMAGENET1K_FEATURES)
         
         self.feature_extractor = nn.Sequential(
-            vgg16_pretrained.features#,
+            vgg16_pretrained.features,
             # vgg16_pretrained.avgpool
+            nn.Flatten()
         )
         self.classifier = nn.Sequential(
-            nn.Flatten(),            
-            # Binary Classifier
             nn.LazyLinear(out_features=4096),
             nn.ReLU(),
             nn.Dropout(p=0.5),
@@ -162,17 +161,9 @@ class VGG16Classifier(nn.Module):
 
     def forward(self, x):
         '''Forward pass'''
-        # print("========================")
-        # print("x:", x.shape)  # batch_size, *
-        x = x.reshape(x.shape[0], 3, 224, 224)  # undo channel flattening
-        # print("x:", x.shape)  # batch_size, channels, image_height, image_width
-
+        x = x.reshape(x.shape[0], 3, 224, 224)  # undo flattening
         x = self.feature_extractor(x)
-        # print("x after feature extraction:", x.shape)
-        x = nn.Flatten()(x)
-        # print("x before classifier:", x.shape)
         x = self.classifier(x)
-        # print("========================")
         return x
 
 
@@ -185,18 +176,17 @@ class ResNet18Classifier(nn.Module):
         resnet18_pretrained = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
         
         self.feature_extractor = nn.Sequential(
-                resnet18_pretrained.conv1,
-                resnet18_pretrained.bn1,
-                resnet18_pretrained.relu,
-                resnet18_pretrained.maxpool,
-                resnet18_pretrained.layer1,
-                resnet18_pretrained.layer2,
-                resnet18_pretrained.layer3,
-                resnet18_pretrained.layer4
+            resnet18_pretrained.conv1,
+            resnet18_pretrained.bn1,
+            resnet18_pretrained.relu,
+            resnet18_pretrained.maxpool,
+            resnet18_pretrained.layer1,
+            resnet18_pretrained.layer2,
+            resnet18_pretrained.layer3,
+            resnet18_pretrained.layer4,
+            nn.Flatten()   
         )
         self.classifier = nn.Sequential(
-            nn.Flatten(),            
-            # Binary Classifier
             nn.Linear(in_features=25088, out_features=4096),
             nn.ReLU(),
             nn.Dropout(p=0.5),
@@ -209,39 +199,7 @@ class ResNet18Classifier(nn.Module):
 
     def forward(self, x):
         '''Forward pass'''
-        # print("========================")
-        # print("x:", x.shape)  # batch_size, *
         x = x.reshape(x.shape[0], 3, 224, 224)  # undo channel flattening
-        # print("x:", x.shape)  # batch_size, channels, image_height, image_width
-
         x = self.feature_extractor(x)
-        # print("x after feature extraction:", x.shape)
-        x = nn.Flatten()(x)
-        # print("x before classifier:", x.shape)
         x = self.classifier(x)
-        # print("========================")
-        return x
-
-
-class LSTM(nn.Module):
-    def __init__(self, input_size, hidden_size):
-        super().__init__()
-        
-        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
-        self.linear = nn.Linear(hidden_size, 2)
-
-    def forward(self, x):
-        x = x.reshape(x.shape[0], 12, -1)  # undo channel/lead flattening
-        # print("RNN input shape:", x.shape)  # batch_size, leads, timesteps
-        x = x.swapaxes(1, 2)
-        # print("RNN input shape:", x.shape)  # batch_size, timesteps, leads
-        
-        # The RNN also returns its hidden state but we don't use it.
-        # While the RNN can also take a hidden state as input, the RNN
-        # gets passed a hidden state initialized with zeros by default.
-        x, _ = self.lstm(x)
-        print("LSTM output:", x.shape)
-        x = self.linear(x)
-        x = x[:, -1, :]  # only return last state
-        print("model output:", x.shape)
         return x
