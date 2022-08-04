@@ -26,7 +26,6 @@ def main(recordings_dir, output_dir, recordings_list):
     except FileExistsError:
         pass
     
-    print(recordings_list)
     recordings_list = pd.read_csv(recordings_list, sep=';')
 
     recordings_list = recordings_list.loc[recordings_list.ecg_length == 5000]

@@ -21,8 +21,18 @@ def load_signal(filepath):
 def load_runs(runs_list, root_dir, min_length=5000, max_length=5000, return_pat_ids=True):
     """ Load raw ECG Signals from runs dir """
     
+    runs_list.recording_date = pd.to_datetime(runs_list.recording_date)
+    runs_list.pat_diagnosis_date = pd.to_datetime(runs_list.pat_diagnosis_date)
+    runs_list['date_diff'] = runs_list.recording_date - runs_list.pat_diagnosis_date  # compute time between ECG recording and diagnosis date (at 12am since we don't have wall time for diagnosis)
+    runs_list = runs_list.loc[runs_list.date_diff > pd.Timedelta(seconds=0)]  # only use ECGs done _on or after_ the diagnosis date
+    
+    assert(runs_list.groupby('pat_id').nunique()['session'].max() == 1)
+    
     runs_list = runs_list.loc[runs_list.ecg_length >= min_length]
     
+    print(f"Counts: {runs_list.shape[0]} total, {runs_list.pat_group.value_counts()}")
+    
+    # load recordings
     signals, targets, pat_ids = [], [], []
     for i in range(len(runs_list.index)):        
         signal_path = os.path.join(root_dir, runs_list.iloc[i]['recording'] + '.csv')
@@ -30,6 +40,18 @@ def load_runs(runs_list, root_dir, min_length=5000, max_length=5000, return_pat_
         signals.append(signal[:, 0:max_length])  # if longer than max_length, cut off everything afterwards
         targets.append(runs_list.iloc[i]['pat_group'])
         pat_ids.append(runs_list.iloc[i]['pat_id'])
+        
+    # load full sessions
+    # signals, targets, pat_ids = [], [], []
+    # for session_id in runs_list.session.unique():        
+    #     signal_path = os.path.join(root_dir, str(session_id) + '.csv')
+    #     signal = load_signal(signal_path)
+    #     signals.append(signal[:, 0:max_length])  # if longer than max_length, cut off everything afterwards
+    #     pat_group = runs_list.loc[runs_list.session == session_id].iloc[0].pat_group
+    #     pat_id = runs_list.loc[runs_list.session == session_id].iloc[0].pat_id
+    #     targets.append(pat_group)
+    #     pat_ids.append(pat_id)
+    
     
     if return_pat_ids:
         return np.stack(signals).astype(np.float32), np.array(targets), np.array(pat_ids)
@@ -146,6 +168,7 @@ class PretrainedModelApplyTransforms(BaseEstimator, TransformerMixin):
         
         plt.figure()
         plt.imshow(transformed_images[0, 0], cmap='binary')
+        plt.axis("off")
         plt.gcf().canvas.draw()
         plt.savefig('./data/processed/example_input_for_vgg16.png')
         
