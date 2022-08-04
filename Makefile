@@ -102,10 +102,6 @@ data:
 	ln -s $(shell pwd)/data/interim/fullsessions_postcovid/* $(shell pwd)/data/interim/fullsessions/
 	ln -s $(shell pwd)/data/interim/fullsessions_ctrl/* $(shell pwd)/data/interim/fullsessions/
 
-#	merge ecg run info csv files
-	tail -n +2 data/interim/recordings_postcovid.csv >> data/interim/recordings.csv
-	tail -n +2 data/interim/recordings_ctrl.csv >> data/interim/recordings.csv
-
 
 train_mlp:
 #	MLP on plain signal
