@@ -18,6 +18,12 @@ def load_signal(filepath):
     return pd.read_csv(filepath, index_col=0).to_numpy().T
 
 
+def clean_signal(signal, sampling_rate=500):
+    cleaned_signals = [nk.ecg_clean(lead, method='biosppy', sampling_rate=sampling_rate) for lead in signal]
+    cleaned_signals = np.stack(cleaned_signals)
+    return cleaned_signals
+
+
 def load_runs(runs_list, root_dir, min_length=5000, max_length=5000, return_pat_ids=True):
     """ Load raw ECG Signals from runs dir """
     runs_list = pd.read_csv(runs_list, sep=';')
