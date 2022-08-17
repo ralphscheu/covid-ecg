@@ -11,7 +11,7 @@ from dotenv import find_dotenv, load_dotenv
 def get_lead_signal_img(lead_signal:np.ndarray, img_size, dpi, crop_horizontal_padding:int=0):
     # Make a white-on-black line plot and save the buffer to a numpy array
     img_width = lead_signal.shape[0] // 2
-    img_render_width = img_width // 6
+    img_render_width = img_width // 10
     fig = plt.figure(figsize=(img_render_width / dpi, img_size / dpi), dpi=dpi)
     fig.gca().plot(lead_signal, linewidth=1, c='black')
     plt.axis('off')
@@ -44,14 +44,16 @@ def main(recordings_file, recordings_dir, output_dir, img_size, dpi):
     
     recs_info = pd.read_csv(recordings_file, sep=';')
     imgdict = {}
-    for rec_i in tqdm(range(25)):  # range(recs_info.shape[0])
+    for rec_i in tqdm(range(recs_info.shape[0])):
         rec_id = recs_info.iloc[rec_i]['recording']
         signal_path = os.path.join(recordings_dir, rec_id + '.csv')
         rec_signal = data_utils.load_signal(signal_path)
         rec_signal = data_utils.clean_signal(rec_signal)
         imgdata = np.stack([get_lead_signal_img(lead_signal, img_size, dpi) for lead_signal in rec_signal], axis=2)
         imgdict.update({rec_id: imgdata})
-    np.savez_compressed(os.path.join(output_dir, 'ecgimgdata.npz'), **imgdict)
+    out_filepath = os.path.join(output_dir, 'ecgimgdata.npz')
+    print(f"Saving to {out_filepath}")
+    np.savez_compressed(out_filepath, **imgdict)
 
 
 if __name__ == '__main__':

@@ -13,6 +13,7 @@ from sklearn.preprocessing import FunctionTransformer, LabelEncoder
 import skorch
 from skorch.callbacks import EpochScoring, EarlyStopping
 from covidecg.models.models import MLP, CNN2D, CNN1D, PretrainedVGG16Classifier, PretrainedResNet18Classifier
+from covidecg.models.cnnseqpool import CNNSeqPool
 import mlflow
 import torch.nn as nn
 import sklearn.metrics
@@ -27,6 +28,7 @@ import torchvision.models
 import matplotlib.pyplot as plt
 from typing import Tuple
 # import torchinfo
+from skorch.helper import SliceDataset
 
 
 def load_exp_model_conf(exp_conf_path, model_conf_path):
@@ -41,6 +43,33 @@ def load_exp_model_conf(exp_conf_path, model_conf_path):
         
     mlflow.log_text(conf_str, 'exp_model_conf.yaml')
     return conf
+
+
+def get_dataset_splits(dataset, test_size=0.2, random_state=0):
+    train_idx, test_idx = train_test_split(
+        np.arange(len(dataset)),
+        test_size=test_size,
+        shuffle=True,
+        stratify=dataset.get_targets(),
+        random_state=random_state)
+    
+    train_dataset = torch.utils.data.Subset(dataset, train_idx)
+    test_dataset = torch.utils.data.Subset(dataset, test_idx)
+    y_train = dataset.get_targets()[train_idx]
+    y_test = dataset.get_targets()[test_idx]
+    
+    ###### ONLY FOR DEVELOPMENT
+    train_dataset = torch.utils.data.Subset(train_dataset, range(5))
+    test_dataset = torch.utils.data.Subset(test_dataset, range(3))
+    y_train = y_train[range(5)]
+    y_test = y_test[range(3)]
+    ######
+    
+    train_dataset = SliceDataset(train_dataset, idx=0)
+    test_dataset = SliceDataset(test_dataset, idx=0)
+    
+    logging.info(f"Train on {len(train_dataset)}, test on {len(test_dataset)} samples")
+    return train_dataset, test_dataset, y_train, y_test
 
 
 def build_preprocessing_pipeline(conf:dict, sampling_rate:int=500) -> sklearn.pipeline.Pipeline:
@@ -89,30 +118,7 @@ def preprocess_data(pipeline, X_train, X_test):
     return X_train, X_test
 
 
-def load_dataset(samples_list:list, root_dir:Path,) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, LabelEncoder]:
-    """ Load dataset and encode targets to numerical """
-
-    logging.info("Loading dataset...")
-    logging.info(f"Samples list: {samples_list}")
-    X_class0, y_class0, pat_ids_class0 = data_utils.load_runs(samples_list[0], root_dir)
-    X_class1, y_class1, pat_ids_class1 = data_utils.load_runs(samples_list[1], root_dir)
-
-    X = np.concatenate((X_class0, X_class1))
-    y = np.concatenate((y_class0, y_class1))
-    
-    label_encoder = LabelEncoder()
-    y = label_encoder.fit_transform(y).astype(np.int64)
-    logging.info(f"Classes in dataset: {label_encoder.classes_}")
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True, stratify=y)
-    
-    logging.info(f"Class distribution in training set before imbalance mitigation: {Counter(y_train)}")
-    logging.info(f"Class distribution in test set: {Counter(y_test)}")
-
-    return X_train, X_test, y_train, y_test, label_encoder
-
-
-def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.pipeline.Pipeline:
+def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
     """ Configure model and optimizer according to configuration files """
     
     logging.info("Building model...")
@@ -121,8 +127,9 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
     mlflow.set_tags({'imbalance_mitigation': conf['imbalance_mitigation'], 
                      'model': conf['model']})
 
-    # compute class weights for loss function if desired
+    # Compute class weights for loss function if desired
     if conf['imbalance_mitigation'] == 'criterion_weights':
+        y_train = dataset.get_targets()
         class_weight = sklearn.utils.class_weight.compute_class_weight(
             class_weight='balanced', classes=np.unique(y_train), y=y_train)
         class_weight = torch.Tensor(class_weight)
@@ -141,12 +148,11 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
         'max_epochs': conf['early_stopping_max_epochs'],
         'device': 'cuda',
         'iterator_train__shuffle': True,  # Shuffle training data on each epoch
+        'train_split': None  # disable skorch-internal train/validation split since GridSearchCV already takes care of that
     }
     
-    if conf['model'] == 'svm':
-        clf = sklearn.svm.SVC(kernel=conf['svm_kernel'], class_weight=class_weight)
-    elif conf['model'] == 'mlp':
-        clf = skorch.NeuralNetClassifier(module=MLP, module__input_size=X_train[0].size, **skorch_clf_common_params)
+    if conf['model'] == 'CNNSeqPool':
+        clf = skorch.NeuralNetClassifier(module=CNNSeqPool, **skorch_clf_common_params)
     elif conf['model'] == 'cnn2d':
         clf = skorch.NeuralNetClassifier(module=CNN2D, **skorch_clf_common_params)
     elif conf['model'] == 'cnn2dimage':
@@ -168,20 +174,20 @@ def build_model(conf:dict, X_train:np.ndarray, y_train:np.ndarray) -> imblearn.p
     else:
         raise f"Invalid value {conf['imbalance_mitigation']} for imbalance_mitigation!"
     
-    logging.info(f"Model pipeline:\n{pipe}")
+    logging.info(f"Model pipeline:\n{pipe.named_steps}")
 
-    return pipe
+    return pipe, clf
 
 
-def evaluate_experiment(X_test:np.ndarray, y_true:np.ndarray, y_encoder:LabelEncoder, gs:imblearn.pipeline.Pipeline) -> None:
+def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> None:
     """ Compute scores, create figures and log all metrics to MLFlow """
 
     # Generate Confusion Matrix
-    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, X_test, y_true, display_labels=y_encoder.classes_, cmap='Blues', normalize='true').figure_
+    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, test_dataset, y_test, display_labels=y_encoder.classes_, cmap='Blues', normalize='true').figure_
     mlflow.log_figure(conf_matrix_fig, 'confusion_matrix.png')
     
     # Generate ROC curve
-    roc_curve_fig = sklearn.metrics.RocCurveDisplay.from_estimator(gs, X_test, y_true).figure_
+    roc_curve_fig = sklearn.metrics.RocCurveDisplay.from_estimator(gs, test_dataset, y_test).figure_
     mlflow.log_figure(roc_curve_fig, 'roc_curve.png')
     
     # Generate train&valid Loss curve
