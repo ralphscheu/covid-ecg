@@ -35,16 +35,16 @@ test_environment:
 
 
 ecg2img:
-	rm -rf data/processed/ecg2img_postcovid
+	rm -rf t-dir data/processed/ecg2img_postcovid
 	mkdir data/processed/ecg2img_postcovid
-	python3 create_images.py \
+	python3 create_images.py --img-height 100 \
 		--recordings-file data/interim/recordings_stress_ecg_postcovid.csv \
 		--recordings-dir data/interim/recordings \
 		--output-dir data/processed/ecg2img_postcovid
 
 	rm -rf data/processed/ecg2img_ctrl
 	mkdir data/processed/ecg2img_ctrl
-	python3 create_images.py \
+	python3 create_images.py --img-height 100 \
 		--recordings-file data/interim/recordings_stress_ecg_ctrl.csv \
 		--recordings-dir data/interim/recordings \
 		--output-dir data/processed/ecg2img_ctrl

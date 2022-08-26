@@ -62,6 +62,7 @@ class EcgImageDataset(EcgDataset):
         img = self.ecg_img_data[self.recordings.iloc[idx].recording]
         img = img / 255.0  # normalize values between 0 (black) and 1 (white)
         img = np.moveaxis(img, 2, 0)
+        img = img.astype(np.float32)
         target = self.recordings.iloc[idx].pat_group
         target = PAT_GROUP_TO_NUMERIC_TARGET[target]
         return img, target
@@ -73,7 +74,7 @@ class EcgImageSequenceDataset(EcgImageDataset):
     def __init__(self, recordings_file, ecg_img_data_file, min_length=100, max_length=None):
         super().__init__(recordings_file, ecg_img_data_file, min_length, max_length)
 
-    def slice_image(self, signal, window_size_ms=30, step_size=10, sampling_rate=500):
+    def slice_image(self, signal, window_size_ms=300, step_size=100, sampling_rate=500):
         window_size_px = int( window_size_ms // (1000.0 / sampling_rate) ) // 2  # convert ms to pixels in image
         step_size = int( step_size // (1000.0 / sampling_rate) )  # convert ms to number of samples in signal
         signal_len = signal.shape[2]

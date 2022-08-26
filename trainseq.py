@@ -14,6 +14,8 @@ import sklearn.metrics
 import torch
 from io import StringIO
 import random
+import time
+from datetime import timedelta
 
 # Ensure reproducibility
 RANDOM_SEED = 0
@@ -21,13 +23,16 @@ random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 torch.cuda.manual_seed(RANDOM_SEED)
-torch.use_deterministic_algorithms(True)
+torch.use_deterministic_algorithms(True, warn_only=True)
 
 
 @click.command()
 @click.option('--exp-config', required=True, type=click.Path(exists=True))
 @click.option('--model-config', required=True, type=click.Path(exists=True))
 def run_experiment(exp_config, model_config):
+    
+    start_time = time.monotonic()
+    
     exp_name = Path(exp_config).stem.replace('exp-', '')
     experiment = mlflow.set_experiment(exp_name)
     with mlflow.start_run(experiment_id=experiment.experiment_id):
@@ -48,18 +53,12 @@ def run_experiment(exp_config, model_config):
         train_dataset, test_dataset, y_train, y_test = utils.get_dataset_splits(dataset, test_size=0.2, random_state=RANDOM_SEED)
         
         X_train = np.stack(list(train_dataset), axis=0)
-        print(X_train.shape)
-        # print(X_train[0])
+        logging.info(f"X_train.shape: {X_train.shape}")
 
-        clfpipe, clf = utils.build_model(conf, train_dataset)
+        clf = utils.build_model(conf, train_dataset)
 
         mlflow.sklearn.autolog()
-        
-        clf.fit(train_dataset, y_train)
-        import sys
-        sys.exit(0)
-        
-        gs = GridSearchCV(clfpipe, conf['grid_search'],
+        gs = GridSearchCV(clf, conf['grid_search'],
             scoring=sklearn.metrics.get_scorer('roc_auc'),
             cv=int(conf['num_cv_folds']), refit=True, error_score='raise', verbose=4)
         gs.fit(train_dataset, y=y_train)
@@ -67,7 +66,10 @@ def run_experiment(exp_config, model_config):
         logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
         logging.info(f"GridSearchCV - Best Params: {gs.best_params_}")
         logging.info("Evaluating best model as determined by Grid Search...")
-        utils.evaluate_experiment(test_dataset, gs)
+        utils.evaluate_experiment(test_dataset, y_test, gs)
+        
+        end_time = time.monotonic()
+        logging.info(f"Done. Finished in {timedelta(seconds=end_time - start_time)}")
         
         mlflow.log_text(LOG_STREAM.getvalue(), 'train_evaluate.log')
 

@@ -7,7 +7,7 @@ import torch
 import logging
 
 
-class CNNSeqPool(nn.Module):
+class CNNSeqLSTM(nn.Module):
     def __init__(self, dropout=0.1):
         super().__init__()
         
@@ -33,6 +33,8 @@ class CNNSeqPool(nn.Module):
             # nn.BatchNorm3d(num_features),
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2)))
+        
+        self.rnn = nn.LSTM(input_size=10368, hidden_size=200, batch_first=True)
         
         self.classifier = nn.Sequential(
             nn.LazyLinear(2),
@@ -63,10 +65,9 @@ class CNNSeqPool(nn.Module):
         x = x.view(batch_size, timesteps, -1)  # restore timesteps and flatten CNN output
         logging.debug(f"CNN output reshaped: {x.shape}")
         
-        # Mean+Std Pooling
-        std, mean = torch.std_mean(x, dim=1)
-        x = torch.concat([mean, std], dim=1)  # concat mean and std vectors for each sample
-        logging.debug(f"Pooling output: {x.shape}")
+        x, _ = self.rnn(x)
+        x = x[:, -1, :]
+        logging.debug(f"RNN output: {x.shape}")
         
         x = self.classifier(x)
         

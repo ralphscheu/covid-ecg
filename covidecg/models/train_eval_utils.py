@@ -1,19 +1,18 @@
 import os
 import click
 import logging
-from pathlib import Path
-from dotenv import find_dotenv, load_dotenv
 import numpy as np
 import yaml
 import covidecg.data.utils as data_utils
 import covidecg.features.utils as feature_utils
 from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearchCV, GroupShuffleSplit, GroupKFold
 import sklearn.pipeline
-from sklearn.preprocessing import FunctionTransformer, LabelEncoder
+from sklearn.preprocessing import FunctionTransformer
 import skorch
 from skorch.callbacks import EpochScoring, EarlyStopping
 from covidecg.models.models import MLP, CNN2D, CNN1D, PretrainedVGG16Classifier, PretrainedResNet18Classifier
 from covidecg.models.cnnseqpool import CNNSeqPool
+from covidecg.models.cnnseqlstm import CNNSeqLSTM
 import mlflow
 import torch.nn as nn
 import sklearn.metrics
@@ -59,10 +58,10 @@ def get_dataset_splits(dataset, test_size=0.2, random_state=0):
     y_test = dataset.get_targets()[test_idx]
     
     ###### ONLY FOR DEVELOPMENT
-    train_dataset = torch.utils.data.Subset(train_dataset, range(5))
-    test_dataset = torch.utils.data.Subset(test_dataset, range(3))
-    y_train = y_train[range(5)]
-    y_test = y_test[range(3)]
+    # train_dataset = torch.utils.data.Subset(train_dataset, range(5))
+    # test_dataset = torch.utils.data.Subset(test_dataset, range(3))
+    # y_train = y_train[range(5)]
+    # y_test = y_test[range(3)]
     ######
     
     train_dataset = SliceDataset(train_dataset, idx=0)
@@ -122,10 +121,10 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
     """ Configure model and optimizer according to configuration files """
     
     logging.info("Building model...")
-    logging.info(f"Applying {conf['imbalance_mitigation']} to mitigate class imbalance in training data...")
+    # logging.info(f"Applying {conf['imbalance_mitigation']} to mitigate class imbalance in training data...")
     
-    mlflow.set_tags({'imbalance_mitigation': conf['imbalance_mitigation'], 
-                     'model': conf['model']})
+    # mlflow.set_tags({'imbalance_mitigation': conf['imbalance_mitigation'], 
+    #                  'model': conf['model']})
 
     # Compute class weights for loss function if desired
     if conf['imbalance_mitigation'] == 'criterion_weights':
@@ -143,7 +142,7 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
         'criterion__weight': class_weight,
         'callbacks': [
             EpochScoring(name='valid_auc', scoring='roc_auc', on_train=False, lower_is_better=False),  # additional scores to observe
-            EarlyStopping(patience=conf['early_stopping_patience'])  # Early Stopping based on validation loss
+            EarlyStopping(patience=conf['early_stopping_patience'], monitor='train_loss')  # Early Stopping based on validation loss
             ],
         'max_epochs': conf['early_stopping_max_epochs'],
         'device': 'cuda',
@@ -153,6 +152,8 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
     
     if conf['model'] == 'CNNSeqPool':
         clf = skorch.NeuralNetClassifier(module=CNNSeqPool, **skorch_clf_common_params)
+    if conf['model'] == 'CNNSeqLSTM':
+        clf = skorch.NeuralNetClassifier(module=CNNSeqLSTM, **skorch_clf_common_params)
     elif conf['model'] == 'cnn2d':
         clf = skorch.NeuralNetClassifier(module=CNN2D, **skorch_clf_common_params)
     elif conf['model'] == 'cnn2dimage':
@@ -163,27 +164,19 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
        clf = skorch.NeuralNetClassifier(module=PretrainedVGG16Classifier, **skorch_clf_common_params)
     elif conf['model'] == 'resnet18':
         clf = skorch.NeuralNetClassifier(module=PretrainedResNet18Classifier, **skorch_clf_common_params)
-
-    # add under/oversampling steps to model pipeline if desired
-    if conf['imbalance_mitigation'] == 'smote':
-        pipe = imblearn.pipeline.Pipeline([('smote', SMOTE()), ('clf', clf)])
-    elif conf['imbalance_mitigation'] == 'random_undersampling':
-        pipe = imblearn.pipeline.Pipeline([('random_undersampling', RandomUnderSampler()), ('clf', clf)])
-    elif conf['imbalance_mitigation'] == 'criterion_weights':
-        pipe = imblearn.pipeline.Pipeline([('clf', clf)])
-    else:
-        raise f"Invalid value {conf['imbalance_mitigation']} for imbalance_mitigation!"
     
-    logging.info(f"Model pipeline:\n{pipe.named_steps}")
+    # logging.info(f"Model pipeline:\n{pipe.named_steps}")
 
-    return pipe, clf
+    return clf
 
 
 def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> None:
     """ Compute scores, create figures and log all metrics to MLFlow """
 
+    from covidecg.data.dataset import PAT_GROUP_TO_NUMERIC_TARGET
+    
     # Generate Confusion Matrix
-    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, test_dataset, y_test, display_labels=y_encoder.classes_, cmap='Blues', normalize='true').figure_
+    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, test_dataset, y_test, display_labels=PAT_GROUP_TO_NUMERIC_TARGET.values(), cmap='Blues', normalize='true').figure_
     mlflow.log_figure(conf_matrix_fig, 'confusion_matrix.png')
     
     # Generate ROC curve
@@ -192,11 +185,10 @@ def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> 
     
     # Generate train&valid Loss curve
     loss_fig = plt.figure()
-    plt.plot(gs.best_estimator_.steps[-1][1].history[:, 'train_loss'], label='train loss')
-    plt.plot(gs.best_estimator_.steps[-1][1].history[:, 'valid_loss'], label='valid loss')
+    plt.plot(gs.best_estimator_.history[:, 'train_loss'], label='train loss')
     plt.legend()
-    mlflow.log_figure(loss_fig, 'train_valid_loss.png')
+    mlflow.log_figure(loss_fig, 'train_loss.png')
     
     # Store model summary of best model in MLFlow
-    mlflow.log_text(str(gs.best_estimator_.steps[-1][1].module_), 'model_topology.txt')
+    mlflow.log_text(str(gs.best_estimator_), 'model_topology.txt')
     # mlflow.log_text(str(torchinfo.summary(gs.best_estimator_.module, input_size=(gs.best_params_['batch_size'], *X_train.shape[1:]))), 'best_model_summary.txt')

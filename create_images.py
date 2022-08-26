@@ -8,12 +8,12 @@ import click
 from dotenv import find_dotenv, load_dotenv
 
 
-def get_lead_signal_img(lead_signal:np.ndarray, img_size, dpi, crop_horizontal_padding:int=0):
+def get_lead_signal_img(lead_signal:np.ndarray, img_height, dpi, crop_horizontal_padding:int=0):
     # Make a white-on-black line plot and save the buffer to a numpy array
     img_width = lead_signal.shape[0] // 2
-    img_render_width = img_width // 10
-    fig = plt.figure(figsize=(img_render_width / dpi, img_size / dpi), dpi=dpi)
-    fig.gca().plot(lead_signal, linewidth=1, c='black')
+    img_render_width = img_width
+    fig = plt.figure(figsize=(img_render_width / dpi, img_height / dpi), dpi=dpi)
+    fig.gca().plot(lead_signal, linewidth=0.6, c='black')
     plt.axis('off')
     fig.tight_layout(pad=0)
     fig.canvas.draw()
@@ -28,7 +28,7 @@ def get_lead_signal_img(lead_signal:np.ndarray, img_size, dpi, crop_horizontal_p
     nonzero_coords = cv2.findNonZero(lead_signal_image) # Find all non-zero points
     x, y, w, h = cv2.boundingRect(nonzero_coords) # Find minimum spanning bounding box
     lead_signal_image = lead_signal_image[:, x - crop_horizontal_padding:x + w + crop_horizontal_padding]
-    lead_signal_image = cv2.resize(lead_signal_image, (img_width, img_size))
+    lead_signal_image = cv2.resize(lead_signal_image, (img_width, img_height))
     lead_signal_image = ~lead_signal_image
     
     return lead_signal_image
@@ -38,18 +38,19 @@ def get_lead_signal_img(lead_signal:np.ndarray, img_size, dpi, crop_horizontal_p
 @click.option('--recordings-file', required=True, type=click.Path(exists=True))
 @click.option('--recordings-dir', required=True, type=click.Path(exists=True))
 @click.option('--output-dir', required=True, type=click.Path(exists=True))
-@click.option('--img-size', default=800, type=int)
+@click.option('--img-height', default=200, type=int)
 @click.option('--dpi', default=96, type=int)
-def main(recordings_file, recordings_dir, output_dir, img_size, dpi):
+def main(recordings_file, recordings_dir, output_dir, img_height, dpi):
     
     recs_info = pd.read_csv(recordings_file, sep=';')
+    recs_info = recs_info.loc[recs_info.ecg_length == 5000]
     imgdict = {}
     for rec_i in tqdm(range(recs_info.shape[0])):
         rec_id = recs_info.iloc[rec_i]['recording']
         signal_path = os.path.join(recordings_dir, rec_id + '.csv')
         rec_signal = data_utils.load_signal(signal_path)
         rec_signal = data_utils.clean_signal(rec_signal)
-        imgdata = np.stack([get_lead_signal_img(lead_signal, img_size, dpi) for lead_signal in rec_signal], axis=2)
+        imgdata = np.stack([get_lead_signal_img(lead_signal, img_height, dpi) for lead_signal in rec_signal], axis=2)
         imgdict.update({rec_id: imgdata})
     out_filepath = os.path.join(output_dir, 'ecgimgdata.npz')
     print(f"Saving to {out_filepath}")
