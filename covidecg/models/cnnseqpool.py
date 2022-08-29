@@ -14,7 +14,7 @@ class CNNSeqPool(nn.Module):
         self.conv1 = nn.Sequential(
             # Conv Layer 1
             nn.Conv3d(in_channels=1, out_channels=8, kernel_size=3, stride=1, padding=1),
-            # nn.BatchNorm3d(num_features),
+            # nn.BatchNorm3d(8),
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2)),
             nn.Dropout(dropout))
@@ -22,7 +22,7 @@ class CNNSeqPool(nn.Module):
         self.conv2 = nn.Sequential(
             # Conv Layer 2
             nn.Conv3d(in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1),
-            # nn.BatchNorm3d(num_features),
+            # nn.BatchNorm3d(8),
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2)),
             nn.Dropout(dropout))
@@ -30,11 +30,12 @@ class CNNSeqPool(nn.Module):
         self.conv3 = nn.Sequential(
             # Conv Layer 3
             nn.Conv3d(in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1),
-            # nn.BatchNorm3d(num_features),
+            # nn.BatchNorm3d(8),
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2)))
         
         self.classifier = nn.Sequential(
+            nn.LazyLinear(100),
             nn.LazyLinear(2),
             nn.Softmax(dim=-1)
         )
