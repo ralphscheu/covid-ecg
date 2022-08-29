@@ -10,7 +10,6 @@ import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer
 import skorch
 from skorch.callbacks import EpochScoring, EarlyStopping
-from covidecg.models.models import MLP, CNN2D, CNN1D, PretrainedVGG16Classifier, PretrainedResNet18Classifier
 from covidecg.models.cnnseqpool import CNNSeqPool
 from covidecg.models.cnnseqlstm import CNNSeqLSTM
 import mlflow
@@ -77,24 +76,6 @@ def build_preprocessing_pipeline(conf:dict, sampling_rate:int=500) -> sklearn.pi
     mlflow.set_tags({'features': conf['features']})
 
     preprocessing = sklearn.pipeline.Pipeline([('clean_signal', data_utils.EcgSignalCleaner())])
-
-    if conf['features'] == 'plain_signal':
-        # no need to do anything - use signal value arrays as-is
-        pass
-    if conf['features'] == 'signal_image':
-        # convert from array of signal values to 2D grayscale image of signal curve
-        preprocessing.steps.append(('convert_signal_to_image', feature_utils.EcgSignalToImageConverter(height=conf['signal_image_height'], width=conf['signal_image_width'])))
-    elif conf['features'] == 'lfcc':
-        preprocessing.steps.append(('extract_lfcc', feature_utils.EcgLfccFeatsExtractor(sampling_rate=sampling_rate)))
-    elif conf['features'] == 'peaks':
-        preprocessing.steps.append(('peaks_feats', feature_utils.EcgPeaksFeatsExtractor(sampling_rate=sampling_rate)))
-    elif conf['features'] == 'intervals':
-        preprocessing.steps.append(('intervals_feats', feature_utils.EcgIntervalsFeatsExtractor(sampling_rate=sampling_rate)))
-    elif conf['features'] == 'peaks_intervals':
-        preprocessing.steps.append(('peaks_intervals_feats',
-                                    sklearn.pipeline.make_union(
-                                        feature_utils.EcgPeaksFeatsExtractor(sampling_rate=sampling_rate),
-                                        feature_utils.EcgIntervalsFeatsExtractor(sampling_rate=sampling_rate))))
 
     if conf['model'] in ['vgg16', 'resnet18']:
         # apply image transforms specific to pretrained model
