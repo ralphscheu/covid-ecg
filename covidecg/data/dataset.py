@@ -44,11 +44,12 @@ class EcgDataset(Dataset):
 class EcgImageDataset(EcgDataset):
     """ PyTorch Dataset for loading ECG signal images of full recordings """
 
-    def __init__(self, recordings_file, ecg_img_data_file, min_length=5000, max_length=5000):
+    def __init__(self, recordings_file, ecg_img_data_file, invert=False, min_length=5000, max_length=5000):
         self.recordings = pd.read_csv(recordings_file, sep=';')
         self.recordings = self.recordings.loc[self.recordings.ecg_length >= min_length]
         if max_length:
             self.recordings = self.recordings.loc[self.recordings.ecg_length <= max_length]
+        self.invert = invert
         self.min_length = min_length
         self.max_length = max_length
         self.ecg_img_data = np.load(ecg_img_data_file)
@@ -61,6 +62,8 @@ class EcgImageDataset(EcgDataset):
     def __getitem__(self, idx):
         img = self.ecg_img_data[self.recordings.iloc[idx].recording]
         img = img / 255.0  # normalize values between 0 (black) and 1 (white)
+        if self.invert:
+            img = 1 - img  # invert image to white-on-black so most pixels will have zero values (improves convergence)
         img = np.moveaxis(img, 2, 0)
         img = img.astype(np.float32)
         target = self.recordings.iloc[idx].pat_group
@@ -71,8 +74,8 @@ class EcgImageDataset(EcgDataset):
 class EcgImageSequenceDataset(EcgImageDataset):
     """ PyTorch Dataset for loading ECG signal images sliced into fixed-length timesteps """
 
-    def __init__(self, recordings_file, ecg_img_data_file, min_length=100, max_length=None):
-        super().__init__(recordings_file, ecg_img_data_file, min_length, max_length)
+    def __init__(self, recordings_file, ecg_img_data_file, invert=False, min_length=100, max_length=None):
+        super().__init__(recordings_file, ecg_img_data_file, invert, min_length, max_length)
 
     def slice_image(self, signal, window_size_ms=300, step_size=100, sampling_rate=500):
         window_size_px = int( window_size_ms // (1000.0 / sampling_rate) ) // 2  # convert ms to pixels in image
