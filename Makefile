@@ -44,10 +44,11 @@ ecg2img:
 
 	rm -rf data/processed/ecg2img_ctrl
 	mkdir data/processed/ecg2img_ctrl
-	python3 create_images.py --img-height 100 \
+	python3 create_images.py \
 		--recordings-file data/interim/recordings_stress_ecg_ctrl.csv \
 		--recordings-dir data/interim/recordings \
 		--output-dir data/processed/ecg2img_ctrl
+
 
 ## Make Dataset
 data:
