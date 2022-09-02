@@ -37,17 +37,33 @@ test_environment:
 ecg2img:
 	rm -rf t-dir data/processed/ecg2img_postcovid
 	mkdir data/processed/ecg2img_postcovid
-	python3 create_images.py --img-height 100 \
+	python3 create_images.py --img-height 200 \
 		--recordings-file data/interim/recordings_stress_ecg_postcovid.csv \
 		--recordings-dir data/interim/recordings \
 		--output-dir data/processed/ecg2img_postcovid
 
 	rm -rf data/processed/ecg2img_ctrl
 	mkdir data/processed/ecg2img_ctrl
-	python3 create_images.py \
+	python3 create_images.py --img-height 200 \
 		--recordings-file data/interim/recordings_stress_ecg_ctrl.csv \
 		--recordings-dir data/interim/recordings \
 		--output-dir data/processed/ecg2img_ctrl
+
+
+khan_data:
+	rm -rf t-dir data/processed/khan2021_normal
+	mkdir data/processed/khan2021_normal
+	python3 load_khan2021_dataset.py --img-height 200 \
+		--input-dir "data/external/Normal Person ECG Images (859)" \
+		--output-dir data/processed/khan2021_normal \
+		--input-layout ecgsheet
+
+	rm -rf t-dir data/processed/khan2021_covid
+	mkdir data/processed/khan2021_covid
+	python3 load_khan2021_dataset.py --img-height 200 \
+		--input-dir "data/external/ECG Images of COVID-19 Patients (250)" \
+		--output-dir data/processed/khan2021_covid \
+		--input-layout binder
 
 
 ## Make Dataset
