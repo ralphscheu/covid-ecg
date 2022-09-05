@@ -79,17 +79,9 @@ if __name__ == '__main__':
     LOG_STREAM = StringIO()
     logging.basicConfig(
         level=os.getenv('LOG_LEVEL', default='INFO'), 
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - %(name)s - %(levelname)s - %(messge)s',
         handlers=[
             logging.StreamHandler(),  # log to stdout
             logging.StreamHandler(stream=LOG_STREAM)  # log to StringIO object for storing in MLFlow
         ])
-
-    try:
-        run_experiment()
-    except BaseException as e:
-        import traceback
-        logging.critical(traceback.format_exc())
-        logging.critical(e)
-        mlflow.log_text(LOG_STREAM.getvalue(), 'train_evaluate.log')
-        mlflow.end_run(status='FAILED')
+    run_experiment()
