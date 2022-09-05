@@ -50,22 +50,6 @@ ecg2img:
 		--output-dir data/processed/ecg2img_ctrl
 
 
-khan_data:
-	rm -rf t-dir data/processed/khan2021_normal
-	mkdir data/processed/khan2021_normal
-	python3 load_khan2021_dataset.py --img-height 200 \
-		--input-dir "data/external/Normal Person ECG Images (859)" \
-		--output-dir data/processed/khan2021_normal \
-		--input-layout ecgsheet
-
-	rm -rf t-dir data/processed/khan2021_covid
-	mkdir data/processed/khan2021_covid
-	python3 load_khan2021_dataset.py --img-height 200 \
-		--input-dir "data/external/ECG Images of COVID-19 Patients (250)" \
-		--output-dir data/processed/khan2021_covid \
-		--input-layout binder
-
-
 ## Make Dataset
 data:
 	

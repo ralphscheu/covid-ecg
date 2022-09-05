@@ -113,29 +113,24 @@ def binder_to_ecgimgdata(img, img_height):
 
 
 @click.command()
-@click.option('--input-dir', required=True, type=click.Path(exists=True, path_type=Path))
-@click.option('--output-dir', required=True, type=click.Path(exists=True, path_type=Path))
+@click.argument('in_file', required=True, type=click.Path(exists=True, path_type=Path, dir_okay=False))
+@click.option('--output-dir', required=True, type=click.Path(exists=True, path_type=Path, file_okay=False))
 @click.option('--input-layout', required=True, type=click.Choice(['ecgsheet', 'binder']))
 @click.option('--img-height', default=200, type=int)
-def main(input_dir, output_dir, input_layout, img_height):
-    # Loop through all images in input directory and save 3x4 ECG leads grid to output directory for further processing
-    for _filepath in tqdm(input_dir.glob('*.jpg'), desc="Processing images"):
-        print(_filepath)
-        input_img = cv2.imread(str(_filepath))  # load ECG image
-        input_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY )  # convert to grayscale
+def main(in_file, output_dir, input_layout, img_height):
+    input_img = cv2.imread(str(in_file))  # load ECG image
+    input_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY )  # convert to grayscale
+    
+    if input_layout == 'ecgsheet':
+        ecg_img_data = ecgsheet_to_ecgimgdata(input_img, img_height)  # 3D numpy array containing extracted images for 12 ECG leads
+    elif input_layout == 'binder':
+        ecg_img_data = binder_to_ecgimgdata(input_img, img_height)
+    
+    print(f"ecg_img_data: {ecg_img_data.shape}")
         
-        if input_layout == 'ecgsheet':
-            ecg_img_data = ecgsheet_to_ecgimgdata(input_img, img_height)  # 3D numpy array containing extracted images for 12 ECG leads
-        elif input_layout == 'binder':
-            ecg_img_data = binder_to_ecgimgdata(input_img, img_height)
-        
-        print(f"ecg_img_data: {ecg_img_data.shape}")
-            
-        ecg_leads_grid_savepath = os.path.join(output_dir, _filepath.stem + '.png')
-        # Image.fromarray(ecg_img_data).convert('L').save(ecg_leads_grid_savepath)
-        
-        ecg_leads_grid = data_utils.generate_ecg_leads_grid(ecg_img_data)
-        Image.fromarray(ecg_leads_grid).convert('L').save(ecg_leads_grid_savepath)
+    ecg_leads_grid_savepath = os.path.join(output_dir, in_file.stem + '.png')
+    ecg_leads_grid = data_utils.generate_ecg_leads_grid(ecg_img_data)
+    Image.fromarray(ecg_leads_grid).convert('L').save(ecg_leads_grid_savepath)
 
 
 if __name__ == '__main__':
