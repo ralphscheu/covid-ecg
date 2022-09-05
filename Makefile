@@ -33,67 +33,11 @@ test_environment:
 # PROJECT RULES                                                                 #
 #################################################################################
 
-
-ecg2img:
-	rm -rf t-dir data/processed/ecg2img_postcovid
-	mkdir data/processed/ecg2img_postcovid
-	python3 create_images.py --img-height 200 \
-		--recordings-file data/interim/recordings_stress_ecg_postcovid.csv \
-		--recordings-dir data/interim/recordings \
-		--output-dir data/processed/ecg2img_postcovid
-
-	rm -rf data/processed/ecg2img_ctrl
-	mkdir data/processed/ecg2img_ctrl
-	python3 create_images.py --img-height 200 \
-		--recordings-file data/interim/recordings_stress_ecg_ctrl.csv \
-		--recordings-dir data/interim/recordings \
-		--output-dir data/processed/ecg2img_ctrl
-
-
-## Make Dataset
 data:
+	bash ./1-load-data.sh
+	bash ./2-generate-ecg-images.sh
 	
-#	extract all recordings for postcovid patient group
-	rm -rf data/interim/recordings_postcovid
-	mkdir data/interim/recordings_postcovid
-	python3 covidecg/data/extract_recordings.py \
-		--prefix postcovid \
-		--patients-list data/raw/patients_postcovid.csv \
-		data/raw/ecg_export_postcovid data/interim/recordings_postcovid
-	
-#	extract all recordings for control group
-	rm -rf data/interim/recordings_ctrl
-	mkdir data/interim/recordings_ctrl
-	python3 covidecg/data/extract_recordings.py \
-		--prefix ctrl \
-		--patients-list data/raw/patients_ctrl.csv \
-		data/raw/ecg_export_ctrl data/interim/recordings_ctrl
-
-
-#	concatenate recordings of the same session together
-	python3 covidecg/data/concat_recordings_per_session.py \
-		--recordings-list data/interim/recordings_stress_ecg_postcovid.csv \
-		data/interim/recordings_postcovid data/interim/fullsessions_postcovid
-
-	python3 covidecg/data/concat_recordings_per_session.py \
-		--recordings-list data/interim/recordings_stress_ecg_ctrl.csv \
-		data/interim/recordings_ctrl data/interim/fullsessions_ctrl
-
-
-#	merge ecg recordings directories
-	rm -rf data/interim/recordings
-	mkdir data/interim/recordings
-	ln -s $(shell pwd)/data/interim/recordings_postcovid/* $(shell pwd)/data/interim/recordings/
-	ln -s $(shell pwd)/data/interim/recordings_ctrl/* $(shell pwd)/data/interim/recordings/
-
-#	merge ecg recordings directories
-	rm -rf data/interim/fullsessions
-	mkdir data/interim/fullsessions
-	ln -s $(shell pwd)/data/interim/fullsessions_postcovid/* $(shell pwd)/data/interim/fullsessions/
-	ln -s $(shell pwd)/data/interim/fullsessions_ctrl/* $(shell pwd)/data/interim/fullsessions/
-
-
-
+	bash ./3-augment-data.sh
 
 #################################################################################
 # Self Documenting Commands                                                     #

@@ -89,18 +89,6 @@ def binder_to_ecgimgdata(img, img_height):
     lead_V4 =   img[0:111, 566:566+145]
     lead_V5 =   img[111:222, 566:566+145]
     lead_V6 =   img[222:333, 566:566+145]
-    # print(lead_I.shape)
-    # print(lead_II.shape)
-    # print(lead_III.shape)
-    # print(lead_aVR.shape)
-    # print(lead_aVL.shape)
-    # print(lead_aVF.shape)
-    # print(lead_V1.shape)
-    # print(lead_V2.shape)
-    # print(lead_V3.shape)
-    # print(lead_V4.shape)
-    # print(lead_V5.shape)
-    # print(lead_V6.shape)
     
     arr = []
     for lead in [lead_I, lead_II, lead_III, lead_aVR, lead_aVL, lead_aVF, lead_V1, lead_V2, lead_V3, lead_V4, lead_V5, lead_V6]:
@@ -125,8 +113,6 @@ def main(in_file, output_dir, input_layout, img_height):
         ecg_img_data = ecgsheet_to_ecgimgdata(input_img, img_height)  # 3D numpy array containing extracted images for 12 ECG leads
     elif input_layout == 'binder':
         ecg_img_data = binder_to_ecgimgdata(input_img, img_height)
-    
-    print(f"ecg_img_data: {ecg_img_data.shape}")
         
     ecg_leads_grid_savepath = os.path.join(output_dir, in_file.stem + '.png')
     ecg_leads_grid = data_utils.generate_ecg_leads_grid(ecg_img_data)
