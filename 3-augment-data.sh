@@ -23,7 +23,7 @@ for file in $indir/*.png; do
     echo $file \> $outdir/`basename $file`
 done
 
- 
+
 ### COMBINE CLEAN AND NOISY VARIANTS
 outdir=data/processed/mmc_recs_ctrl_aug
 rm -rf t-dir $outdir
@@ -36,3 +36,17 @@ for file in data/processed/mmc_recs_ctrl_noise/*.png; do
     fileBaseName=`basename $file`
     ln -s `pwd`/$file $outdir/${fileBaseName%.*}_noise.png
 done
+
+
+outdir=data/processed/mmc_recs_postcovid_aug
+rm -rf t-dir $outdir
+mkdir $outdir
+for file in data/processed/mmc_recs_postcovid/*.png; do
+    fileBaseName=`basename $file`
+    ln -s `pwd`/$file $outdir/${fileBaseName%.*}.png
+done
+for file in data/processed/mmc_recs_postcovid_noise/*.png; do
+    fileBaseName=`basename $file`
+    ln -s `pwd`/$file $outdir/${fileBaseName%.*}_noise.png
+done
+
