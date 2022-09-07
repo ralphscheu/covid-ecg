@@ -36,7 +36,6 @@ test_environment:
 data:
 	bash ./1-load-data.sh
 	bash ./2-generate-ecg-images.sh
-	
 	bash ./3-augment-data.sh
 
 #################################################################################

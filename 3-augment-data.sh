@@ -6,7 +6,7 @@ outdir=data/processed/mmc_recs_ctrl_noise
 rm -rf t-dir $outdir
 mkdir $outdir
 for file in $indir/*.png; do
-    python3 augment_ecgleadsgrid.py \
+    python3 covidecg/data/augment_ecgleadsgrid.py \
         --aug-method noise --noise-mode speckle \
         $file $outdir/`basename $file`
     echo $file \> $outdir/`basename $file`
@@ -17,7 +17,7 @@ outdir=data/processed/mmc_recs_postcovid_noise
 rm -rf t-dir $outdir
 mkdir $outdir
 for file in $indir/*.png; do
-    python3 augment_ecgleadsgrid.py \
+    python3 covidecg/data/augment_ecgleadsgrid.py \
         --aug-method noise --noise-mode speckle \
         $file $outdir/`basename $file`
     echo $file \> $outdir/`basename $file`
