@@ -4,7 +4,6 @@ import logging
 import numpy as np
 import yaml
 import covidecg.data.utils as data_utils
-import covidecg.features.utils as feature_utils
 from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearchCV, GroupShuffleSplit, GroupKFold
 import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer

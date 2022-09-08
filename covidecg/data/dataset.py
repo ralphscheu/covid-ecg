@@ -17,14 +17,14 @@ PAT_GROUP_TO_NUMERIC_TARGET = {'postcovid': 1, 'ctrl': 0}
 class EcgDataset(Dataset):
     """ PyTorch Dataset for loading ECG signals as arrays of voltage values """
     
-    def __init__(self, recordings_file, recordings_dir, min_length=5000, max_length=5000, transform=None):
-        self.recordings = pd.read_csv(recordings_file, sep=';')
+    def __init__(self, recs_list, recs_dir, min_length=5000, max_length=5000, transform=None):
+        self.recordings = pd.read_csv(recs_list, sep=';')
         self.recordings = self.recordings.loc[self.recordings.ecg_length >= min_length]
         if max_length:
             self.recordings = self.recordings.loc[self.recordings.ecg_length <= max_length]
         self.min_length = min_length
         self.max_length = max_length
-        self.recordings_dir = recordings_dir
+        self.recs_dir = recs_dir
         self.transform = transform
 
     def __len__(self):
@@ -32,7 +32,7 @@ class EcgDataset(Dataset):
 
     def __getitem__(self, idx):
         """ Fetch a single recording referenced by index """
-        signal_path = os.path.join(self.recordings_dir, self.recordings.iloc[idx]['recording'] + '.csv')
+        signal_path = os.path.join(self.recs_dir, self.recordings.iloc[idx]['recording'] + '.csv')
         signal = data_utils.load_signal(signal_path)
         signal = data_utils.clean_signal(signal)
         if self.transform:
@@ -45,15 +45,15 @@ class EcgDataset(Dataset):
 class EcgImageDataset(EcgDataset):
     """ PyTorch Dataset for loading ECG signal images of full recordings """
 
-    def __init__(self, recordings_file, root_dir, invert=False, min_length=5000, max_length=5000):
-        self.recordings = pd.read_csv(recordings_file, sep=';')
+    def __init__(self, recs_list, recs_dir, invert=False, min_length=5000, max_length=5000):
+        self.recordings = pd.read_csv(recs_list, sep=';')
         self.recordings = self.recordings.loc[self.recordings.ecg_length >= min_length]
         if max_length:
             self.recordings = self.recordings.loc[self.recordings.ecg_length <= max_length]
         self.invert = invert
         self.min_length = min_length
         self.max_length = max_length
-        self.root_dir = root_dir
+        self.recs_dir = recs_dir
     
     def get_targets(self):
         targets = [PAT_GROUP_TO_NUMERIC_TARGET[pat_group] for pat_group in self.recordings.pat_group]
@@ -62,21 +62,22 @@ class EcgImageDataset(EcgDataset):
     
 
     def __getitem__(self, idx):
-        img = Image.open(os.path.join(self.root_dir, self.recordings.iloc[idx].recording + '.png'))
-        img = np.asarray(img)
-        print(f"img: {img.shape}")
-        
-        img = img / 255.0  # normalize values between 0 (black) and 1 (white)
+        img_filepath = os.path.join(self.recs_dir, self.recordings.iloc[idx].recording + '.png')
+        input_img = cv2.imread(img_filepath)  # load base image file
+        input_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY )  # convert to grayscale
+        # print(f"input_img: {input_img.shape}")
+        input_img = input_img.astype(np.float32)
+        input_img = input_img / 255.0  # normalize values between 0 (black) and 1 (white)
         if self.invert:
-            img = 1 - img  # invert image to white-on-black so most pixels will have zero values (improves convergence)
+            input_img = 1 - input_img  # invert image to white-on-black so most pixels will have zero values (improves convergence)
         
-        ecg_printout_row_height = img.shape[0] // 3
-        ecg_printout_col_width = img.shape[1] // 4
+        ecg_printout_row_height = input_img.shape[0] // 3
+        ecg_printout_col_width = input_img.shape[1] // 4
         
-        leads = [img[y:y+ecg_printout_row_height, x:x+ecg_printout_col_width] for x in range(0,img.shape[1],ecg_printout_col_width) for y in range(0,img.shape[0],ecg_printout_row_height)]
-        print(len(leads), leads[0].shape)
+        leads = [input_img[y:y+ecg_printout_row_height, x:x+ecg_printout_col_width] for x in range(0,input_img.shape[1],ecg_printout_col_width) for y in range(0,input_img.shape[0],ecg_printout_row_height)]
+        # print(len(leads), leads[0].shape)
         leads = np.stack(leads, axis=0)
-        print(f"leads: {leads.shape}")
+        # print(f"leads: {leads.shape}")
         
         target = self.recordings.iloc[idx].pat_group
         target = PAT_GROUP_TO_NUMERIC_TARGET[target]
@@ -87,8 +88,8 @@ class EcgImageDataset(EcgDataset):
 class EcgImageSequenceDataset(EcgImageDataset):
     """ PyTorch Dataset for loading ECG signal images sliced into fixed-length timesteps """
 
-    def __init__(self, recordings_file, root_dir, invert=False, min_length=100, max_length=None):
-        super().__init__(recordings_file, root_dir, invert, min_length, max_length)
+    def __init__(self, recs_list, recs_dir, invert=False, min_length=100, max_length=None):
+        super().__init__(recs_list, recs_dir, invert, min_length, max_length)
 
     def slice_image(self, signal, window_size_ms=300, step_size=100, sampling_rate=500):
         window_size_px = int( window_size_ms // (1000.0 / sampling_rate) ) // 2  # convert ms to pixels in image
@@ -105,7 +106,7 @@ class EcgImageSequenceDataset(EcgImageDataset):
             yield next_slice
 
     def __getitem__(self, idx):
-        img, target = super().__getitem__(idx)
+        img, target, _ = super().__getitem__(idx)
         img_slices = list(self.slice_image(img))
         img_slices = np.stack(img_slices, axis=0)
         return img_slices, target
