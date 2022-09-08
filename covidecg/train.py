@@ -16,6 +16,8 @@ from io import StringIO
 import random
 import time
 from datetime import timedelta
+import warnings
+warnings.filterwarnings('ignore')
 
 # Ensure reproducibility
 RANDOM_SEED = 0
@@ -49,9 +51,6 @@ def run_experiment(exp_config, model_config):
 
         # Split into train/valid and test portion
         train_dataset, test_dataset, y_train, y_test = utils.get_dataset_splits(dataset, test_size=0.2, random_state=RANDOM_SEED)
-        
-        # X_train = np.stack(list(train_dataset), axis=0)
-        # logging.info(f"X_train.shape: {X_train.shape}")
 
         clf = utils.build_model(conf, train_dataset)
 

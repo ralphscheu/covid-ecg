@@ -8,7 +8,7 @@ from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearc
 import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer
 import skorch
-from skorch.callbacks import EpochScoring, EarlyStopping
+from skorch.callbacks import EpochScoring, EarlyStopping, MlflowLogger, LRScheduler, ProgressBar
 from covidecg.models.cnnseqpool import CNNSeqPool
 from covidecg.models.cnnseqlstm import CNNSeqLSTM
 import mlflow
@@ -79,10 +79,6 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
     """ Configure model and optimizer according to configuration files """
     
     logging.info("Building model...")
-    # logging.info(f"Applying {conf['imbalance_mitigation']} to mitigate class imbalance in training data...")
-    
-    # mlflow.set_tags({'imbalance_mitigation': conf['imbalance_mitigation'], 
-    #                  'model': conf['model']})
 
     # Compute class weights for loss function if desired
     if conf['imbalance_mitigation'] == 'criterion_weights':
@@ -99,8 +95,10 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
         'criterion': nn.CrossEntropyLoss,
         'criterion__weight': class_weight,
         'callbacks': [
-            EpochScoring(name='valid_auc', scoring='roc_auc', on_train=False, lower_is_better=False),  # additional scores to observe
-            EarlyStopping(patience=conf['early_stopping_patience'], monitor='train_loss')  # Early Stopping based on validation loss
+            EpochScoring(name='train_auc', scoring='roc_auc', on_train=True, lower_is_better=False),  # additional scores to observe
+            EarlyStopping(patience=conf['early_stopping_patience'], monitor='train_loss'),  # Early Stopping based on train loss
+            MlflowLogger(),  # log to MlFlow after every epoch
+            ProgressBar(),
             ],
         'max_epochs': conf['early_stopping_max_epochs'],
         'device': 'cuda',
