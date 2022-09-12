@@ -16,8 +16,8 @@ datetime_format = '%Y%m%d%H%M%S.%f'
 
 
 @click.command()
-@click.argument('input_dir', type=click.Path(exists=True))
-@click.argument('output_dir', type=click.Path())
+@click.argument('input_dir', type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument('output_dir', type=click.Path(exists=False, file_okay=False, path_type=Path))
 @click.option('--prefix', required=True, type=str)
 @click.option('--patients-list', required=True, type=click.Path())
 @click.option('--min-length', type=int, default=5000)
@@ -31,10 +31,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
     logger.info(f'Processing XML files in {input_dir}')
 
     # create output dir if not exists
-    try:
-        os.mkdir(output_dir)
-    except FileExistsError:
-        pass
+    os.makedirs(output_dir)
 
     patients_list = pd.read_csv(patients_list, sep=';')
 
@@ -78,6 +75,8 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
             # number of samples in recording
             # -> ecg_length / sampling_rate = recording length in seconds
             ecg_length = len(rec_df.index)
+            if ecg_length > max_length or ecg_length < min_length:
+                continue
 
             # generate DataFrame Index as milliseconds from start of run (integer)
             ms_between_samples = int(1.0 / sampling_rate * 1000)
@@ -126,9 +125,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
     recordings_stress_ecg = recording_list.loc[recording_list.ecg_type == 'Belastungs']
     recordings_stress_ecg.to_csv(f'data/interim/mmc_recs_stress_{prefix}.csv', sep=';', index=False)
     
-    # save rest ECG recordings metadata
-    recordings_rest_ecg = recording_list.loc[recording_list.ecg_type == 'Ruhe']
-    recordings_rest_ecg.to_csv(f'data/interim/mmc_recs_rest_{prefix}.csv', sep=';', index=False)
+    # TODO save labels in text file (alternative: extract labels from filenames later on)
     
     logger.info(f'Done. Saved csv files to {output_dir}')
 

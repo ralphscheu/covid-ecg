@@ -28,17 +28,12 @@ from typing import Tuple
 from skorch.helper import SliceDataset
 
 
-def load_exp_model_conf(exp_conf_path, model_conf_path):
-    with open(exp_conf_path) as f:
-        conf_str = '### EXPERIMENT CONFIG ###\n'
-        conf_str += f.read()
-        conf = yaml.safe_load(conf_str)
+def load_exp_model_conf(model_conf_path):
     with open(model_conf_path) as f:
-        conf_str += '\n\n### MODEL CONFIG ###\n'
+        conf_str = '\n\n### MODEL CONFIG ###\n'
         conf_str += f.read()
-        conf = {**conf, **yaml.safe_load(conf_str)}  # combine exp and model configs into single dict
-        
-    mlflow.log_text(conf_str, 'exp_model_conf.yaml')
+        conf = yaml.safe_load(conf_str)  # combine exp and model configs into single dict
+    mlflow.log_text(conf_str, 'conf.yaml')
     return conf
 
 
@@ -81,13 +76,13 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
     logging.info("Building model...")
 
     # Compute class weights for loss function if desired
-    if conf['imbalance_mitigation'] == 'criterion_weights':
-        y_train = dataset.get_targets()
-        class_weight = sklearn.utils.class_weight.compute_class_weight(
-            class_weight='balanced', classes=np.unique(y_train), y=y_train)
-        class_weight = torch.Tensor(class_weight)
-    else:
-        class_weight = None
+    # if conf['imbalance_mitigation'] == 'criterion_weights':
+    #     y_train = dataset.get_targets()
+    #     class_weight = sklearn.utils.class_weight.compute_class_weight(
+    #         class_weight='balanced', classes=np.unique(y_train), y=y_train)
+    #     class_weight = torch.Tensor(class_weight)
+    # else:
+    class_weight = None
 
     # params passed to skorch.NeuralNetClassifier that are the same for all skorch-based models
     skorch_clf_common_params = {
@@ -97,7 +92,6 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
         'callbacks': [
             EpochScoring(name='train_auc', scoring='roc_auc', on_train=True, lower_is_better=False),  # additional scores to observe
             EarlyStopping(patience=conf['early_stopping_patience'], monitor='train_loss'),  # Early Stopping based on train loss
-            MlflowLogger(),  # log to MlFlow after every epoch
             ProgressBar(),
             ],
         'max_epochs': conf['early_stopping_max_epochs'],
@@ -128,11 +122,9 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
 
 def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> None:
     """ Compute scores, create figures and log all metrics to MLFlow """
-
-    from covidecg.data.dataset import PAT_GROUP_TO_NUMERIC_TARGET
     
     # Generate Confusion Matrix
-    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, test_dataset, y_test, display_labels=PAT_GROUP_TO_NUMERIC_TARGET.values(), cmap='Blues', normalize='true').figure_
+    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, test_dataset, y_test, display_labels=test_dataset.classes, cmap='Blues', normalize='true').figure_
     mlflow.log_figure(conf_matrix_fig, 'confusion_matrix.png')
     
     # Generate ROC curve

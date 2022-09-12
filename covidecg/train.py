@@ -6,7 +6,7 @@ from dotenv import find_dotenv, load_dotenv
 import numpy as np
 import covidecg.models.train_eval_utils as utils
 import covidecg.data.utils as data_utils
-from covidecg.data.dataset import EcgImageDataset, EcgImageSequenceDataset, ConcatEcgDataset
+from covidecg.data.dataset import SliceEcgGrid, SliceTimesteps
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder
 import mlflow
@@ -18,6 +18,8 @@ import time
 from datetime import timedelta
 import warnings
 warnings.filterwarnings('ignore')
+import torchvision
+from skorch.helper import SliceDataset
 
 # Ensure reproducibility
 RANDOM_SEED = 0
@@ -29,28 +31,29 @@ torch.use_deterministic_algorithms(True, warn_only=True)
 
 
 @click.command()
-@click.option('--exp-config', required=True, type=click.Path(exists=True))
 @click.option('--model-config', required=True, type=click.Path(exists=True))
-def run_experiment(exp_config, model_config):
+@click.argument('dataset_root', required=True, type=click.Path(exists=True, file_okay=False, path_type=Path))
+def run_experiment(model_config, dataset_root):
     start_time = time.monotonic()
-    exp_name = Path(exp_config).stem.replace('exp-', '')
-    experiment = mlflow.set_experiment(exp_name)
+    experiment = mlflow.set_experiment(experiment_name=Path(dataset_root).stem)
     with mlflow.start_run(experiment_id=experiment.experiment_id):
-        conf = utils.load_exp_model_conf(exp_config, model_config)
+        conf = utils.load_exp_model_conf(model_config)
 
         # Load dataset
-        ds_postcovid = EcgImageSequenceDataset(
-            recs_list='./data/interim/mmc_recs_stress_postcovid.csv',
-            recs_dir='./data/processed/mmc_recs_postcovid',
-            min_length=5000, max_length=5000)
-        ds_ctrl = EcgImageSequenceDataset(
-            recs_list='./data/interim/mmc_recs_stress_ctrl.csv',
-            recs_dir='./data/processed/mmc_recs_ctrl',
-            min_length=5000, max_length=5000)
-        dataset = ConcatEcgDataset([ds_postcovid, ds_ctrl])
-
-        # Split into train/valid and test portion
-        train_dataset, test_dataset, y_train, y_test = utils.get_dataset_splits(dataset, test_size=0.2, random_state=RANDOM_SEED)
+        train_dataset = torchvision.datasets.ImageFolder(dataset_root / 'train', transform=torchvision.transforms.Compose([
+            torchvision.transforms.Grayscale(),
+            torchvision.transforms.ToTensor(),
+            SliceEcgGrid(),
+            SliceTimesteps()
+            ]))
+        y_train = np.array(train_dataset.targets)
+        test_dataset = torchvision.datasets.ImageFolder(dataset_root / 'val', transform=torchvision.transforms.Compose([
+            torchvision.transforms.Grayscale(),
+            torchvision.transforms.ToTensor(),
+            SliceEcgGrid(), 
+            SliceTimesteps()
+            ]))
+        y_test = np.array(test_dataset.targets)
 
         clf = utils.build_model(conf, train_dataset)
 
@@ -58,12 +61,14 @@ def run_experiment(exp_config, model_config):
         gs = GridSearchCV(clf, conf['grid_search'],
             scoring=sklearn.metrics.get_scorer('roc_auc'),
             cv=int(conf['num_cv_folds']), refit=True, error_score='raise', verbose=4)
-        gs.fit(train_dataset, y=y_train)
+        
+        print(f"Start training on GPUs {os.environ['CUDA_VISIBLE_DEVICES']}...")
+        gs.fit(SliceDataset(train_dataset), y_train)
 
         logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
         logging.info(f"GridSearchCV - Best Params: {gs.best_params_}")
         logging.info("Evaluating best model as determined by Grid Search...")
-        utils.evaluate_experiment(test_dataset, y_test, gs)
+        utils.evaluate_experiment(SliceDataset(test_dataset), y_test, gs)
         
         end_time = time.monotonic()
         logging.info(f"Done. Finished in {timedelta(seconds=end_time - start_time)}")

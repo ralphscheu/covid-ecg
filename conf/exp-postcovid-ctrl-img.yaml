@@ -1,6 +1,0 @@
-# input data
-root_dir: ./data/interim/recordings
-samples_list:
-  - ./data/interim/recordings_stress_ecg_postcovid.csv
-  - ./data/interim/recordings_stress_ecg_ctrl.csv
-imbalance_mitigation: smote  # smote | random_undersampling | criterion_weights

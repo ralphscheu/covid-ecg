@@ -102,10 +102,13 @@ def binder_to_ecgimgdata(img, img_height):
 
 @click.command()
 @click.argument('in_file', required=True, type=click.Path(exists=True, path_type=Path, dir_okay=False))
-@click.option('--output-dir', required=True, type=click.Path(exists=True, path_type=Path, file_okay=False))
+@click.option('--output-dir', required=True, type=click.Path(path_type=Path, file_okay=False))
 @click.option('--input-layout', required=True, type=click.Choice(['ecgsheet', 'binder']))
 @click.option('--img-height', default=200, type=int)
 def main(in_file, output_dir, input_layout, img_height):
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
     input_img = cv2.imread(str(in_file))  # load ECG image
     input_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY )  # convert to grayscale
     
