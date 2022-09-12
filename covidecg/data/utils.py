@@ -25,7 +25,8 @@ def clean_signal(signal, sampling_rate=500):
 
 
 def generate_ecg_leads_grid(imgdata):
-    imgdata = np.reshape(imgdata, (3, 4, imgdata.shape[1], imgdata.shape[2]))
+    imgdata = np.reshape(imgdata, (4, 3, imgdata.shape[1], imgdata.shape[2]))
+    imgdata = np.swapaxes(imgdata, 0, 1)
     col0 = np.concatenate(list(imgdata[:, 0]), axis=0)
     col1 = np.concatenate(list(imgdata[:, 1]), axis=0)
     col2 = np.concatenate(list(imgdata[:, 2]), axis=0)
@@ -34,9 +35,3 @@ def generate_ecg_leads_grid(imgdata):
     # print(f"cols: {col0.shape}, {col1.shape}, {col2.shape}, {col3.shape}")
     ecg_leads_grid = np.concatenate([col0, col1, col2, col3], axis=1)
     return ecg_leads_grid
-
-
-##########################################################
-#               PIPELINE BUILDING BLOCKS                 #
-##########################################################
-
