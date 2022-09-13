@@ -15,6 +15,18 @@ import pathlib
 PAT_GROUP_TO_NUMERIC_TARGET = {'postcovid': 1, 'ctrl': 0, 'covid': 1, 'normal': 0}
 
 
+class ScaleGrayscale(object):
+    def __call__(self, im):
+        im = im / 255.0
+        return im
+
+class InvertGrayscale(object):
+    def __call__(self, im):
+        im = 1.0 - im
+        return im
+    
+    
+
 class SliceEcgGrid(object):
     """Convert ndarrays in sample to Tensors."""
 
@@ -26,7 +38,7 @@ class SliceEcgGrid(object):
         ecggrid_col_width = sample.shape[1] // 4
         leads = [sample[y:y + ecggrid_row_height, x:x + ecggrid_col_width] for x in range(0, sample.shape[1], ecggrid_col_width) for y in range(0, sample.shape[0], ecggrid_row_height)]
         leads = np.stack(leads, axis=0)
-        return leads
+        return torch.Tensor(leads)
 
 
 class SliceTimesteps(object):
@@ -49,4 +61,5 @@ class SliceTimesteps(object):
         # print(f"SliceTimesteps: {sample.shape}")
         img_slices = list(self.slice_image(sample))
         img_slices = np.stack(img_slices, axis=0)
+        img_slices = torch.Tensor(img_slices.astype(np.float32))
         return img_slices
