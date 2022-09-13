@@ -9,7 +9,7 @@ from dotenv import find_dotenv, load_dotenv
 from PIL import Image
 
 
-def signal2image(signal:np.ndarray, img_height, dpi, ecg_value_range=[-599, 600], crop_horizontal_padding:int=0):
+def signal2image(signal:np.ndarray, img_height, dpi, ecg_value_range=[-1500, 1499], crop_horizontal_padding:int=0):
     # Make a white-on-black line plot and save the buffer to a numpy array
     img_width = signal.shape[0] // 5
     img_render_width = img_width

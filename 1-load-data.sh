@@ -8,7 +8,7 @@
 # ### LOAD RAW RECORDINGS
 # #####################
 
-# # Extract all recordings for postcovid patient group
+# Extract all recordings for postcovid patient group
 # rm -rf data/interim/mmc_recs_csv/postcovid
 # python3 covidecg/data/extract_recordings.py \
 #     --prefix postcovid \
@@ -32,17 +32,22 @@
 
 # rm -rf data/interim/mmc_recs/postcovid
 # mkdir -p data/interim/mmc_recs/postcovid
-# python3 covidecg/data/create_images.py --img-height 200 \
+# python3 covidecg/data/create_images.py --img-height 100 \
 #     --recordings-file data/interim/mmc_recs_stress_postcovid.csv \
 #     --recordings-dir data/interim/mmc_recs_csv/postcovid \
 #     --output-dir data/interim/mmc_recs/postcovid
 
 # rm -rf data/interim/mmc_recs/ctrl
 # mkdir -p data/interim/mmc_recs/ctrl
-# python3 covidecg/data/create_images.py --img-height 200 \
+# python3 covidecg/data/create_images.py --img-height 100 \
 #     --recordings-file data/interim/mmc_recs_stress_ctrl.csv \
 #     --recordings-dir data/interim/mmc_recs_csv/ctrl \
 #     --output-dir data/interim/mmc_recs/ctrl
+
+# rm -rf data/interim/mmc_recs_10s
+# python covidecg/data/filter_and_symlink.py --min-length 5000 --max-length 5000 data/interim/mmc_recs/ctrl data/interim/mmc_recs_10s/ctrl
+# python covidecg/data/filter_and_symlink.py --min-length 5000 --max-length 5000 data/interim/mmc_recs/postcovid data/interim/mmc_recs_10s/postcovid
+
 
 
 
@@ -70,34 +75,44 @@
 # rm -rf t-dir data/interim/khan2021/normal
 # for file in ./data/external/Normal\ Person\ ECG\ Images\ \(859\)/Normal*.jpg; do
 #     echo "Processing ${file}"
-#     python3 covidecg/data/load_khan2021_dataset.py --img-height 200 \
+#     python3 covidecg/data/load_khan2021_dataset.py --img-height 100 \
 #         --output-dir data/interim/khan2021/normal \
 #         --input-layout ecgsheet \
 #         "${file}"
 # done
 
-# rm -rf t-dir data/interim/khan2021/covid
-# for file in ./data/external/ECG\ Images\ of\ COVID-19\ Patients\ \(250\)/Binder*.jpg; do
-#     echo "Processing ${file}"
-# 	python3 covidecg/data/load_khan2021_dataset.py --img-height 200 \
-# 		--output-dir data/interim/khan2021/covid \
-# 		--input-layout binder \
-#         "${file}"
-# done
-# # TODO check whether ecgsheet coordinates from "Normal" dataset also work for COVID samples
-# for file in ./data/external/ECG\ Images\ of\ COVID-19\ Patients\ \(250\)/COVID*.jpg; do
-#     echo "Processing ${file}"
-# 	python3 covidecg/data/load_khan2021_dataset.py --img-height 200 \
-# 		--output-dir data/interim/khan2021/covid \
-# 		--input-layout ecgsheet \
-#         "${file}"
-# done
+rm -rf data/interim/khan2021/covid
+for file in ./data/external/ECG\ Images\ of\ COVID-19\ Patients\ \(250\)/Binder*.jpg; do
+    echo "Processing ${file}"
+	python3 covidecg/data/load_khan2021_dataset.py --img-height 100 \
+		--output-dir data/interim/khan2021/covid \
+		--input-layout binder \
+        "${file}"
+done
+for file in ./data/external/ECG\ Images\ of\ COVID-19\ Patients\ \(250\)/COVID*.jpg; do
+    echo "Processing ${file}"
+	python3 covidecg/data/load_khan2021_dataset.py --img-height 100 \
+		--output-dir data/interim/khan2021/covid \
+		--input-layout ecgsheet \
+        "${file}"
+done
+
+
+
 
 
 # Generate train/test sets for mmc_recs_postcovid_vs_ctrl
 rm -rf data/processed/mmc_recs_postcovid_vs_ctrl
 splitfolders --output data/processed/mmc_recs_postcovid_vs_ctrl --ratio .8 .2 -- data/interim/mmc_recs
 
+# Generate train/test sets for mmc_recs_10s_postcovid_vs_ctrl
+rm -rf data/processed/mmc_recs_10s_postcovid_vs_ctrl
+splitfolders --output data/processed/mmc_recs_10s_postcovid_vs_ctrl --ratio .8 .2 -- data/interim/mmc_recs_10s
+
+
+
+
 # Generate train/test sets for khan2021_covid_vs_normal
 rm -rf data/processed/khan2021_covid_vs_normal
 splitfolders --output data/processed/khan2021_covid_vs_normal --ratio .8 .2 -- data/interim/khan2021
+

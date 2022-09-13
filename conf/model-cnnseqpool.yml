@@ -1,9 +1,9 @@
 model: CNNSeqPool
 grid_search:
-  lr: [0.001]
-  batch_size: [16]
+  lr: [0.0001, 0.001]
+  batch_size: [8, 16]
 
 # GridSearch config
-early_stopping_max_epochs: 30
+early_stopping_max_epochs: 25
 early_stopping_patience: 5
-num_cv_folds: 5
+num_cv_folds: 10

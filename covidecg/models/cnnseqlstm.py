@@ -34,8 +34,7 @@ class CNNSeqLSTM(nn.Module):
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2)))
         
-        self.rnn = nn.LSTM(input_size=21600, hidden_size=200, batch_first=True)
-        
+        self.rnn = nn.LSTM(input_size=10368, hidden_size=200, batch_first=True)
         self.classifier = nn.Sequential(
             nn.LazyLinear(2),
             nn.Softmax(dim=-1)

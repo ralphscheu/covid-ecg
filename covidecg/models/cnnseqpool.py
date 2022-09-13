@@ -7,6 +7,13 @@ import torch
 import logging
 
 
+class MeanStdPool(nn.Module):
+    def forward(self, x):
+        std, mean = torch.std_mean(x, dim=1)
+        x = torch.concat([mean, std], dim=1)  # concat mean and std vectors for each sample
+        return x
+
+
 class CNNSeqPool(nn.Module):
     def __init__(self, dropout=0.1):
         super().__init__()
@@ -33,6 +40,8 @@ class CNNSeqPool(nn.Module):
             # nn.BatchNorm3d(8),
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2)))
+        
+        self.pooling = MeanStdPool()
         
         self.classifier = nn.Sequential(
             nn.LazyLinear(100),
@@ -65,8 +74,7 @@ class CNNSeqPool(nn.Module):
         logging.debug(f"CNN output reshaped: {x.shape}")
         
         # Mean+Std Pooling
-        std, mean = torch.std_mean(x, dim=1)
-        x = torch.concat([mean, std], dim=1)  # concat mean and std vectors for each sample
+        x = self.pooling(x)
         logging.debug(f"Pooling output: {x.shape}")
         
         x = self.classifier(x)

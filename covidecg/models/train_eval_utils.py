@@ -83,6 +83,16 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
     #     class_weight = torch.Tensor(class_weight)
     # else:
     class_weight = None
+    
+    
+    def pad_batch(batch):
+        im, label = list(zip(*batch))
+        from torch.nn.utils.rnn import pad_sequence
+        padded_batch = pad_sequence(im, batch_first=True, padding_value=0.0)
+        label = list(label)
+        label = np.array(label, dtype=np.uint8)
+        label = torch.from_numpy(label).type(torch.LongTensor)
+        return padded_batch, label
 
     # params passed to skorch.NeuralNetClassifier that are the same for all skorch-based models
     skorch_clf_common_params = {
@@ -96,9 +106,15 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
             ],
         'max_epochs': conf['early_stopping_max_epochs'],
         'device': 'cuda',
+        'iterator_train__collate_fn': pad_batch,
         'iterator_train__shuffle': True,  # Shuffle training data on each epoch
+        'iterator_valid__collate_fn': pad_batch,
+        'iterator_valid__shuffle': False,
         'train_split': None  # disable skorch-internal train/validation split since GridSearchCV already takes care of that
     }
+    
+    logging.info(f"Model: {conf['model']}")
+    mlflow.set_tag('model', conf['model'])
     
     if conf['model'] == 'CNNSeqPool':
         clf = skorch.NeuralNetClassifier(module=CNNSeqPool, **skorch_clf_common_params)
@@ -119,16 +135,17 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
 
     return clf
 
+from skorch.helper import SliceDataset
 
 def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> None:
     """ Compute scores, create figures and log all metrics to MLFlow """
     
     # Generate Confusion Matrix
-    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, test_dataset, y_test, display_labels=test_dataset.classes, cmap='Blues', normalize='true').figure_
+    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test, display_labels=test_dataset.classes, cmap='Blues', normalize='true').figure_
     mlflow.log_figure(conf_matrix_fig, 'confusion_matrix.png')
     
     # Generate ROC curve
-    roc_curve_fig = sklearn.metrics.RocCurveDisplay.from_estimator(gs, test_dataset, y_test).figure_
+    roc_curve_fig = sklearn.metrics.RocCurveDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test).figure_
     mlflow.log_figure(roc_curve_fig, 'roc_curve.png')
     
     # Generate train&valid Loss curve

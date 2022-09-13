@@ -6,7 +6,7 @@ from dotenv import find_dotenv, load_dotenv
 import numpy as np
 import covidecg.models.train_eval_utils as utils
 import covidecg.data.utils as data_utils
-from covidecg.data.dataset import SliceEcgGrid, SliceTimesteps
+from covidecg.data.dataset import InvertGrayscale, SliceEcgGrid, SliceTimesteps
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import FunctionTransformer, LabelEncoder
 import mlflow
@@ -43,6 +43,7 @@ def run_experiment(model_config, dataset_root):
         train_dataset = torchvision.datasets.ImageFolder(dataset_root / 'train', transform=torchvision.transforms.Compose([
             torchvision.transforms.Grayscale(),
             torchvision.transforms.ToTensor(),
+            InvertGrayscale(),
             SliceEcgGrid(),
             SliceTimesteps()
             ]))
@@ -50,6 +51,7 @@ def run_experiment(model_config, dataset_root):
         test_dataset = torchvision.datasets.ImageFolder(dataset_root / 'val', transform=torchvision.transforms.Compose([
             torchvision.transforms.Grayscale(),
             torchvision.transforms.ToTensor(),
+            InvertGrayscale(),
             SliceEcgGrid(), 
             SliceTimesteps()
             ]))
@@ -68,7 +70,7 @@ def run_experiment(model_config, dataset_root):
         logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
         logging.info(f"GridSearchCV - Best Params: {gs.best_params_}")
         logging.info("Evaluating best model as determined by Grid Search...")
-        utils.evaluate_experiment(SliceDataset(test_dataset), y_test, gs)
+        utils.evaluate_experiment(test_dataset, y_test, gs)
         
         end_time = time.monotonic()
         logging.info(f"Done. Finished in {timedelta(seconds=end_time - start_time)}")
