@@ -30,7 +30,7 @@ class MeanStdPool(nn.Module):
         x = torch.concat([mean, std], dim=1)  # concat mean and std vectors for each sample
         return x
 
-class CNN3DSeqPool(CNN3DSeq):
+class CNN3DSeqMeanStdPool(CNN3DSeq):
     def __init__(self, dropout=0.1):
         super().__init__(dropout=dropout)
         self.pooling = MeanStdPool()

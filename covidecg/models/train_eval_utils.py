@@ -9,7 +9,7 @@ import sklearn.pipeline
 from sklearn.preprocessing import FunctionTransformer
 import skorch
 from skorch.callbacks import EpochScoring, EarlyStopping, MlflowLogger, LRScheduler, ProgressBar
-from covidecg.models.cnn3dseq import CNN3DSeqPool, CNN3DSeqLSTM
+from covidecg.models.cnn3dseq import CNN3DSeqMeanStdPool, CNN3DSeqLSTM
 import mlflow
 import torch.nn as nn
 import sklearn.metrics
@@ -116,7 +116,7 @@ def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipelin
     mlflow.set_tag('model', model_name)
     
     if model_name == 'CNN3DSeqPool':
-        clf = skorch.NeuralNetClassifier(module=CNN3DSeqPool, **skorch_clf_common_params)
+        clf = skorch.NeuralNetClassifier(module=CNN3DSeqMeanStdPool, **skorch_clf_common_params)
     if model_name == 'CNN3DSeqLSTM':
         clf = skorch.NeuralNetClassifier(module=CNN3DSeqLSTM, **skorch_clf_common_params)
     elif model_name == 'cnn2d':
