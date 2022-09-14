@@ -16,13 +16,29 @@ def cnn3dseq_conv_layer(dropout, **kwargs):
     )
 
 class CNN3DSeq(nn.Module):
-    def __init__(self, dropout):
+    def __init__(self, dropout, reduction_size):
         super().__init__()
         self.conv1 = cnn3dseq_conv_layer(dropout=dropout, in_channels=1, out_channels=8, kernel_size=3, stride=1, padding=1)
         self.conv2 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1)
         self.conv3 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1)
+        self.reduction = nn.LazyLinear(reduction_size)
         self.classifier = nn.Sequential(nn.LazyLinear(2), nn.Softmax(dim=-1))
     
+    def forward_cnn3d(self, x):
+        batch_size, timesteps, d1, d2, d3 = x.size()
+        x = x.view(batch_size * timesteps, d1, d2, d3)  # merge timesteps and batch dimension
+        x = x[:, None, :, :, :]  # insert channels dimension for Conv3D
+        logging.debug(f"conv1 input: {x.shape}")
+        x = self.conv1(x)
+        logging.debug(f"conv1 output: {x.shape}")
+        x = self.conv2(x)
+        logging.debug(f"conv2 output: {x.shape}")
+        x = self.conv3(x)
+        logging.debug(f"conv3 output: {x.shape}")
+        x = x.view(batch_size, timesteps, -1)  # restore timesteps and flatten CNN output
+        logging.debug(f"conv3 output reshaped: {x.shape}")
+        return x
+
 
 class MeanStdPool(nn.Module):
     def forward(self, x):
@@ -31,8 +47,8 @@ class MeanStdPool(nn.Module):
         return x
 
 class CNN3DSeqMeanStdPool(CNN3DSeq):
-    def __init__(self, dropout=0.1):
-        super().__init__(dropout=dropout)
+    def __init__(self, dropout=0.1, reduction_size=1024):
+        super().__init__(dropout=dropout, reduction_size=reduction_size)
         self.pooling = MeanStdPool()
 
     def forward(self, x):
@@ -43,18 +59,9 @@ class CNN3DSeqMeanStdPool(CNN3DSeq):
             np.ndarray: Softmax output
         """
         logging.debug(f"model input: {x.shape} (batch_size, timesteps, d1, d2, d3)")
-        batch_size, timesteps, d1, d2, d3 = x.size()
-        x = x.view(batch_size * timesteps, d1, d2, d3)  # merge timesteps and batch dimension
-        x = x[:, None, :, :, :]  # insert channels dimension for Conv3D
-        logging.debug(f"conv1 input: {x.shape}")
-        x = self.conv1(x)
-        logging.debug(f"conv1 output: {x.shape}")
-        x = self.conv2(x)
-        logging.debug(f"conv2 output: {x.shape}")
-        x = self.conv3(x)
-        logging.debug(f"conv3 output: {x.shape}")
-        x = x.view(batch_size, timesteps, -1)  # restore timesteps and flatten CNN output
-        logging.debug(f"conv3 output reshaped: {x.shape}")
+        x = self.forward_cnn3d(x)
+        x = self.reduction(x)
+        logging.debug(f"reduction layer output: {x.shape}")
         x = self.pooling(x)
         logging.debug(f"pooling output: {x.shape}")
         x = self.classifier(x)
@@ -63,9 +70,9 @@ class CNN3DSeqMeanStdPool(CNN3DSeq):
 
 
 class CNN3DSeqLSTM(CNN3DSeq):
-    def __init__(self, dropout, lstm_hidden_size=200):
-        super().__init__(dropout=dropout)
-        self.rnn = nn.LSTM(input_size=10368, hidden_size=lstm_hidden_size, batch_first=True)
+    def __init__(self, dropout=0.1, lstm_hidden_size=200, reduction_size=1024):
+        super().__init__(dropout=dropout, reduction_size=reduction_size)
+        self.rnn = nn.LSTM(input_size=1024, hidden_size=lstm_hidden_size, batch_first=True)
 
     def forward(self, x):
         """Forward step
@@ -75,20 +82,12 @@ class CNN3DSeqLSTM(CNN3DSeq):
             np.ndarray: Softmax output
         """
         logging.debug(f"model input: {x.shape} (batch_size, timesteps, d1, d2, d3)")
-        batch_size, timesteps, d1, d2, d3 = x.size()
-        x = x.view(batch_size * timesteps, d1, d2, d3)  # merge timesteps and batch dimension
-        x = x[:, None, :, :, :]  # insert channels dimension for Conv3D
-        logging.debug(f"conv1 input: {x.shape}")
-        x = self.conv1(x)
-        logging.debug(f"conv1 output: {x.shape}")
-        x = self.conv2(x)
-        logging.debug(f"conv2 output: {x.shape}")
-        x = self.conv3(x)
-        logging.debug(f"conv3 output: {x.shape}")
-        x = x.view(batch_size, timesteps, -1)  # restore timesteps and flatten CNN output
-        logging.debug(f"conv3 output reshaped: {x.shape}")
-        x, _ = self.rnn(x)[:, -1, :]  # last LSTM output
+        x = self.forward_cnn3d(x)
+        x = self.reduction(x)
+        logging.debug(f"reduction layer output: {x.shape}")
+        x, _ = self.rnn(x)
+        x = x[:, -1, :]  # use last LSTM output
         logging.debug(f"rnn output: {x.shape}")        
-        x = self.classifier(x)        
+        x = self.classifier(x)       
         logging.debug(f"classifier output: {x.shape}")
         return x
