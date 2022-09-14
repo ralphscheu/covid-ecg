@@ -24,13 +24,11 @@ class MeanStdPool(nn.Module):
 class CNN3DSeqPool(nn.Module):
     def __init__(self, dropout=0.1):
         super().__init__()
-        
         self.conv1 = cnn3dseq_conv_layer(dropout=dropout, in_channels=1, out_channels=8, kernel_size=3, stride=1, padding=1)
         self.conv2 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1)
         self.conv3 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1)
         self.pooling = MeanStdPool()
         self.classifier = nn.Sequential(
-            nn.LazyLinear(100),
             nn.LazyLinear(2),
             nn.Softmax(dim=-1)
         )
@@ -67,7 +65,6 @@ class CNN3DSeqPool(nn.Module):
 class CNN3DSeqLSTM(nn.Module):
     def __init__(self, dropout=0.1):
         super().__init__()
-        
         self.conv1 = cnn3dseq_conv_layer(dropout=dropout, in_channels=1, out_channels=8, kernel_size=3, stride=1, padding=1)
         self.conv2 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1)
         self.conv3 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1)
