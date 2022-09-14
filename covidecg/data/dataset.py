@@ -43,22 +43,21 @@ class SliceEcgGrid(object):
 
 class SliceTimesteps(object):
     
-    def slice_image(self, signal, window_size_ms=300, step_size=100, sampling_rate=500):
-        window_size_px = int( window_size_ms // (1000.0 / sampling_rate) ) // 2  # convert ms to pixels in image
-        step_size = int( step_size // (1000.0 / sampling_rate) )  # convert ms to number of samples in signal
+    def slice_image(self, signal, window_size_ms=300, step_size_ms=100, sampling_rate=500):
+        window_size_px = window_size_ms // 10  # convert ms to pixels in image (100px = 1000ms)
+        step_size_px = int( step_size_ms // 10 )  # convert ms to pixels in image (100px = 1000ms)
         signal_len = signal.shape[2]
 
-        # right-pad signal to multiple of step_size for equally sized windows
+        # right-pad signal to multiple of window_size_px for equally sized windows
         right_pad_len = window_size_px - (signal_len % window_size_px) if signal_len % window_size_px > 0 else 0
         signal = np.pad(signal, ((0,0), (0,0), (0, right_pad_len)), mode='constant', constant_values=1.0)
 
-        for start in range(0, signal_len - window_size_px + 1, step_size):
+        for start in range(0, signal_len - window_size_px + 1, step_size_px):
             next_slice = signal[:, :, start:start + window_size_px]
             # print(start, start + window_size_px, "slice:", next_slice.shape)
             yield next_slice
     
     def __call__(self, sample):
-        # print(f"SliceTimesteps: {sample.shape}")
         img_slices = list(self.slice_image(sample))
         img_slices = np.stack(img_slices, axis=0)
         img_slices = torch.Tensor(img_slices.astype(np.float32))
