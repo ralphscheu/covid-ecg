@@ -31,13 +31,13 @@ torch.use_deterministic_algorithms(True, warn_only=True)
 
 
 @click.command()
-@click.option('--model-config', required=True, type=click.Path(exists=True))
+@click.option('--model', required=True, type=click.Choice(['CNN3DSeqPool', 'CNN3DSeqLSTM']))
 @click.argument('dataset_root', required=True, type=click.Path(exists=True, file_okay=False, path_type=Path))
-def run_experiment(model_config, dataset_root):
+def run_experiment(model, dataset_root):
     start_time = time.monotonic()
     experiment = mlflow.set_experiment(experiment_name=Path(dataset_root).stem)
     with mlflow.start_run(experiment_id=experiment.experiment_id):
-        conf = utils.load_exp_model_conf(model_config)
+        conf = utils.load_exp_model_conf(os.path.join(os.getenv('PROJECT_ROOT'), 'conf', 'train_conf.yaml'))
 
         # Load dataset
         train_dataset = torchvision.datasets.ImageFolder(dataset_root / 'train', transform=torchvision.transforms.Compose([
@@ -57,7 +57,7 @@ def run_experiment(model_config, dataset_root):
             ]))
         y_test = np.array(test_dataset.targets)
 
-        clf = utils.build_model(conf, train_dataset)
+        clf = utils.build_model(model, conf, train_dataset)
 
         mlflow.sklearn.autolog()
         gs = GridSearchCV(clf, conf['grid_search'],

@@ -69,7 +69,7 @@ def get_dataset_splits(dataset, test_size=0.2, random_state=0):
 
 
 
-def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
+def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipeline:
     """ Configure model and optimizer according to configuration files """
     
     logging.info("Building model...")
@@ -112,22 +112,22 @@ def build_model(conf:dict, dataset) -> imblearn.pipeline.Pipeline:
         'train_split': None  # disable skorch-internal train/validation split since GridSearchCV already takes care of that
     }
     
-    logging.info(f"Model: {conf['model']}")
-    mlflow.set_tag('model', conf['model'])
+    logging.info(f"Model: {model_name}")
+    mlflow.set_tag('model', model_name)
     
-    if conf['model'] == 'CNN3DSeqPool':
+    if model_name == 'CNN3DSeqPool':
         clf = skorch.NeuralNetClassifier(module=CNN3DSeqPool, **skorch_clf_common_params)
-    if conf['model'] == 'CNN3DSeqLSTM':
+    if model_name == 'CNN3DSeqLSTM':
         clf = skorch.NeuralNetClassifier(module=CNN3DSeqLSTM, **skorch_clf_common_params)
-    elif conf['model'] == 'cnn2d':
+    elif model_name == 'cnn2d':
         clf = skorch.NeuralNetClassifier(module=CNN2D, **skorch_clf_common_params)
-    elif conf['model'] == 'cnn2dimage':
+    elif model_name == 'cnn2dimage':
         clf = skorch.NeuralNetClassifier(module=CNN2DImage, **skorch_clf_common_params)
-    elif conf['model'] == 'cnn1d':
+    elif model_name == 'cnn1d':
         clf = skorch.NeuralNetClassifier(module=CNN1D, **skorch_clf_common_params)
-    elif conf['model'] == 'vgg16':
+    elif model_name == 'vgg16':
        clf = skorch.NeuralNetClassifier(module=PretrainedVGG16Classifier, **skorch_clf_common_params)
-    elif conf['model'] == 'resnet18':
+    elif model_name == 'resnet18':
         clf = skorch.NeuralNetClassifier(module=PretrainedResNet18Classifier, **skorch_clf_common_params)
     
     # logging.info(f"Model pipeline:\n{pipe.named_steps}")
