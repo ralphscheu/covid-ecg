@@ -139,7 +139,25 @@ from skorch.helper import SliceDataset
 def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> None:
     """ Compute scores, create figures and log all metrics to MLFlow """
     
+    y_pred = gs.predict(SliceDataset(test_dataset))
+    roc_auc = sklearn.metrics.roc_auc_score(y_test, y_pred)
+    accuracy = sklearn.metrics.accuracy_score(y_test, y_pred)
+    bal_accuracy = sklearn.metrics.balanced_accuracy_score(y_test, y_pred)
+    f1 = sklearn.metrics.f1_score(y_test, y_pred)
+    precision = sklearn.metrics.precision_score(y_test, y_pred)
+    recall = sklearn.metrics.recall_score(y_test, y_pred)
+    mlflow.log_metrics({
+        'roc_auc': roc_auc,
+        'accuracy': accuracy,
+        'bal_accuracy': bal_accuracy,
+        'f1': f1,
+        'precision': precision,
+        'recall': recall
+    })
+    
     # Generate Confusion Matrix
+    conf_matrix = sklearn.metrics.confusion_matrix(y_test, y_pred)
+    mlflow.log_text(str(conf_matrix), 'confusion_matrix.txt')
     conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test, display_labels=test_dataset.classes, cmap='Blues', normalize='true').figure_
     mlflow.log_figure(conf_matrix_fig, 'confusion_matrix.png')
     
