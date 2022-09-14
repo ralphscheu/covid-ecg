@@ -48,7 +48,7 @@ def run_experiment(model, dataset_root):
             SliceTimesteps()
             ]))
         y_train = np.array(train_dataset.targets)
-        test_dataset = torchvision.datasets.ImageFolder(dataset_root / 'val', transform=torchvision.transforms.Compose([
+        test_dataset = torchvision.datasets.ImageFolder(dataset_root / 'test', transform=torchvision.transforms.Compose([
             torchvision.transforms.Grayscale(),
             torchvision.transforms.ToTensor(),
             InvertGrayscale(),
@@ -64,7 +64,7 @@ def run_experiment(model, dataset_root):
             scoring=sklearn.metrics.get_scorer('roc_auc'),
             cv=int(conf['num_cv_folds']), refit=True, error_score='raise', verbose=4)
         
-        print(f"Start training on GPUs {os.environ['CUDA_VISIBLE_DEVICES']}...")
+        logging.info(f"Start training on {len(os.environ['CUDA_VISIBLE_DEVICES'].split(','))} GPUs ({os.environ['CUDA_VISIBLE_DEVICES']})")
         gs.fit(SliceDataset(train_dataset), y_train)
 
         logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
