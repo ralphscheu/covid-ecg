@@ -31,14 +31,12 @@
 # #####################
 
 # rm -rf data/interim/mmc_recs/postcovid
-# mkdir -p data/interim/mmc_recs/postcovid
 # python3 covidecg/data/create_images.py --img-height 100 \
 #     --recordings-file data/interim/mmc_recs_stress_postcovid.csv \
 #     --recordings-dir data/interim/mmc_recs_csv/postcovid \
 #     --output-dir data/interim/mmc_recs/postcovid
 
 # rm -rf data/interim/mmc_recs/ctrl
-# mkdir -p data/interim/mmc_recs/ctrl
 # python3 covidecg/data/create_images.py --img-height 100 \
 #     --recordings-file data/interim/mmc_recs_stress_ctrl.csv \
 #     --recordings-dir data/interim/mmc_recs_csv/ctrl \

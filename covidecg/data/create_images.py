@@ -7,6 +7,8 @@ from tqdm import tqdm
 import click
 from dotenv import find_dotenv, load_dotenv
 from PIL import Image
+import logging
+import pathlib
 
 
 def signal2image(signal:np.ndarray, img_height, dpi, ecg_value_range=[-1500, 1499], crop_horizontal_padding:int=0):
@@ -36,26 +38,30 @@ def signal2image(signal:np.ndarray, img_height, dpi, ecg_value_range=[-1500, 149
 
 
 @click.command()
-@click.option('--recordings-file', required=True, type=click.Path(exists=True))
-@click.option('--recordings-dir', required=True, type=click.Path(exists=True))
-@click.option('--output-dir', required=True, type=click.Path(exists=True))
+@click.option('--recordings-file', required=True, type=click.Path(exists=True, path_type=pathlib.Path))
+@click.option('--recordings-dir', required=True, type=click.Path(exists=True, path_type=pathlib.Path))
+@click.option('--output-dir', required=True, type=click.Path(exists=False, path_type=pathlib.Path))
 @click.option('--img-height', default=200, type=int)
 @click.option('--dpi', default=96, type=int)
 def main(recordings_file, recordings_dir, output_dir, img_height, dpi):
+    os.makedirs(output_dir)
+    logging.basicConfig(
+        level=os.getenv('LOG_LEVEL', default='INFO'), 
+        format=os.getenv('LOG_FORMAT'),
+        handlers=[logging.StreamHandler(), logging.FileHandler(output_dir / 'create_images.log')])
     
     recs_info = pd.read_csv(recordings_file, sep=';')
     imgdict = {}
     for rec_i in tqdm(range(recs_info.shape[0])):
         rec_id = recs_info.iloc[rec_i]['recording']
-        signal_path = os.path.join(recordings_dir, rec_id + '.csv')
+        signal_path = recordings_dir / f'{rec_id}.csv'
         rec_signal = data_utils.load_signal(signal_path)
-        rec_signal = rec_signal[:, 0:5000]  # max length of 10 seconds
         rec_signal = data_utils.clean_signal(rec_signal)
         imgdata = np.stack([signal2image(lead_signal, img_height, dpi) for lead_signal in rec_signal], axis=0)
         
-        ecg_printout = data_utils.generate_ecg_leads_grid(imgdata)
-        ecg_printout_savepath = os.path.join(output_dir, rec_id + '.png')
-        Image.fromarray(ecg_printout).save(ecg_printout_savepath)
+        ecggrid = data_utils.generate_ecg_leads_grid(imgdata)
+        ecggrid_savepath = os.path.join(output_dir, rec_id + '.png')
+        Image.fromarray(ecggrid).save(ecggrid_savepath)
         
         # imgdict.update({rec_id: imgdata})
         
