@@ -48,6 +48,6 @@ def main(recordings_dir, output_dir, recordings_list):
 
 if __name__ == '__main__':
     load_dotenv(find_dotenv())
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
+    logging.basicConfig(level=logging.INFO, format=os.getenv('LOG_FORMAT'),
+                        handlers=[logging.StreamHandler()])
     main()

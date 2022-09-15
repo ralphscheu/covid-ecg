@@ -82,8 +82,7 @@ if __name__ == '__main__':
     load_dotenv(find_dotenv())  # load environment variables set in .env file
     LOG_STREAM = StringIO()
     logging.basicConfig(
-        level=os.getenv('LOG_LEVEL', default='INFO'), 
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=os.getenv('LOG_LEVEL', default='INFO'), format=os.getenv('LOG_FORMAT'),
         handlers=[
             logging.StreamHandler(),  # log to stdout
             logging.StreamHandler(stream=LOG_STREAM)  # log to StringIO object for storing in MLFlow

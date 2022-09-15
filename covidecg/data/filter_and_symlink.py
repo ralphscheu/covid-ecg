@@ -18,6 +18,10 @@ import cv2
 @click.option('--max-length', required=True, type=int)
 def main(in_dir, out_dir, min_length, max_length):
     os.makedirs(out_dir)
+    logging.basicConfig(
+        level=os.getenv('LOG_LEVEL', default='INFO'), 
+        format=os.getenv('LOG_FORMAT'),
+        handlers=[logging.StreamHandler(), logging.FileHandler(out_dir / 'filter_and_symlink.log')])
     min_length = min_length // 5
     max_length = max_length // 5
     for f in Path(in_dir).glob('*.png'):
@@ -34,7 +38,4 @@ def main(in_dir, out_dir, min_length, max_length):
 
 if __name__ == '__main__':
     load_dotenv(find_dotenv())  # load environment variables set in .env file
-    logging.basicConfig(
-        level=os.getenv('LOG_LEVEL', default='INFO'), 
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     main()

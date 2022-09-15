@@ -30,8 +30,9 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
     logger = logging.getLogger(__name__)
     logger.info(f'Processing XML files in {input_dir}')
 
-    # create output dir if not exists
     os.makedirs(output_dir)
+    
+    logging.basicConfig(level=logging.INFO, format=os.getenv('LOG_FORMAT'), handlers=[logging.StreamHandler(), logging.FileHandler(output_dir / 'extract_recordings.log')])
 
     patients_list = pd.read_csv(patients_list, sep=';')
 
@@ -132,6 +133,4 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
 
 if __name__ == '__main__':
     load_dotenv(find_dotenv())
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
     main()

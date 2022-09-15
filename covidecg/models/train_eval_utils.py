@@ -72,7 +72,7 @@ def get_dataset_splits(dataset, test_size=0.2, random_state=0):
 def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipeline:
     """ Configure model and optimizer according to configuration files """
     
-    logging.info("Building model...")
+    logging.debug("Building model...")
 
     # Compute class weights for loss function if desired
     # if conf['imbalance_mitigation'] == 'criterion_weights':

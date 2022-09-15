@@ -28,8 +28,7 @@ def main(in_dir, out_dir):
     os.makedirs(out_dir_test / dataset.classes[1])
     
     logging.basicConfig(
-        level=os.getenv('LOG_LEVEL', default='INFO'), 
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=os.getenv('LOG_LEVEL', default='INFO'), format=os.getenv('LOG_FORMAT'),
         handlers=[
             logging.StreamHandler(),  # log to stdout
             logging.FileHandler(out_dir / 'split_train_test.log')
