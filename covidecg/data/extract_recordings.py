@@ -20,8 +20,8 @@ datetime_format = '%Y%m%d%H%M%S.%f'
 @click.argument('output_dir', type=click.Path(exists=False, file_okay=False, path_type=Path))
 @click.option('--prefix', required=True, type=str)
 @click.option('--patients-list', required=True, type=click.Path())
-@click.option('--min-length', type=int, default=5000)
-@click.option('--max-length', type=int, default=5000)
+@click.option('--min-length', type=int, default=500)
+@click.option('--max-length', type=int, default=10000)
 @click.option('--sampling-rate', type=float, default=500)
 def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, sampling_rate):
     """ Runs data processing scripts to turn raw data from (../raw) into
@@ -124,7 +124,7 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
 
     # save stress ECG recordings metadata
     recordings_stress_ecg = recording_list.loc[recording_list.ecg_type == 'Belastungs']
-    recordings_stress_ecg.to_csv(f'data/interim/mmc_recs_stress_{prefix}.csv', sep=';', index=False)
+    recordings_stress_ecg.to_csv(f'data/interim/mmc_stress_{prefix}.csv', sep=';', index=False)
     
     # TODO save labels in text file (alternative: extract labels from filenames later on)
     
