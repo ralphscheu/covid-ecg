@@ -7,6 +7,22 @@ import torch
 import logging
 
 
+###########
+# MODULES #
+###########
+
+class MeanStdPool(nn.Module):
+    """ Mean+Std Pooling layer """
+    def forward(self, x):
+        std, mean = torch.std_mean(x, dim=1)
+        x = torch.concat([mean, std], dim=1)  # concat mean and std vectors for each sample
+        return x
+
+class MeanPool(nn.Module):
+    """ Mean Pooling layer """
+    def forward(self, x):
+        return torch.mean(x, dim=1)
+
 def cnn3dseq_conv_layer(dropout, **kwargs):
     return nn.Sequential(
         nn.Conv3d(**kwargs),
@@ -15,12 +31,13 @@ def cnn3dseq_conv_layer(dropout, **kwargs):
         nn.Dropout(dropout)
     )
 
+
 class CNN3DSeq(nn.Module):
-    def __init__(self, dropout, reduction_size):
+    def __init__(self, dropout, reduction_size, conv_kernel_size=(3, 3, 3)):
         super().__init__()
-        self.conv1 = cnn3dseq_conv_layer(dropout=dropout, in_channels=1, out_channels=8, kernel_size=3, stride=1, padding=1)
-        self.conv2 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1)
-        self.conv3 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=3, stride=1, padding=1)
+        self.conv1 = cnn3dseq_conv_layer(dropout=dropout, in_channels=1, out_channels=8, kernel_size=conv_kernel_size, stride=1, padding='same')
+        self.conv2 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=conv_kernel_size, stride=1, padding='same')
+        self.conv3 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=conv_kernel_size, stride=1, padding='same')
         self.reduction = nn.LazyLinear(reduction_size)
         self.classifier = nn.Sequential(nn.LazyLinear(2), nn.Softmax(dim=-1))
     
@@ -40,15 +57,15 @@ class CNN3DSeq(nn.Module):
         return x
 
 
-class MeanStdPool(nn.Module):
-    def forward(self, x):
-        std, mean = torch.std_mean(x, dim=1)
-        x = torch.concat([mean, std], dim=1)  # concat mean and std vectors for each sample
-        return x
+
+###########
+#  MODELS #
+###########
 
 class CNN3DSeqMeanStdPool(CNN3DSeq):
-    def __init__(self, dropout=0.1, reduction_size=1024):
-        super().__init__(dropout=dropout, reduction_size=reduction_size)
+    """ CNN3DSeq variant applying Mean+Std Pooling across timesteps """
+    def __init__(self, dropout=0.1, reduction_size=1024, conv_kernel_size=(3, 3, 3)):
+        super().__init__(dropout=dropout, reduction_size=reduction_size, conv_kernel_size=conv_kernel_size)
         self.pooling = MeanStdPool()
 
     def forward(self, x):
@@ -70,8 +87,9 @@ class CNN3DSeqMeanStdPool(CNN3DSeq):
 
 
 class CNN3DSeqLSTM(CNN3DSeq):
-    def __init__(self, dropout=0.1, lstm_hidden_size=200, reduction_size=1024):
-        super().__init__(dropout=dropout, reduction_size=reduction_size)
+    """ CNN3DSeq variant applying one unidirectional LSTM layer across timesteps """
+    def __init__(self, dropout=0.1, reduction_size=1024, conv_kernel_size=(3, 3, 3), lstm_hidden_size=200):
+        super().__init__(dropout=dropout, reduction_size=reduction_size, conv_kernel_size=conv_kernel_size)
         self.rnn = nn.LSTM(input_size=1024, hidden_size=lstm_hidden_size, batch_first=True)
 
     def forward(self, x):
@@ -91,3 +109,9 @@ class CNN3DSeqLSTM(CNN3DSeq):
         x = self.classifier(x)       
         logging.debug(f"classifier output: {x.shape}")
         return x
+
+
+# TODO: add CNN3DSeqAttnPool model
+
+
+# TODO: add CNN3DSeqAttnLSTM model
