@@ -171,6 +171,6 @@ def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> 
     plt.legend()
     mlflow.log_figure(loss_fig, 'train_loss.png')
     
-    # Store model summary of best model in MLFlow
+    mlflow.sklearn.log_model(gs.best_estimator_, 'best_model')
     mlflow.log_text(str(gs.best_estimator_), 'model_topology.txt')
     # mlflow.log_text(str(torchinfo.summary(gs.best_estimator_.module, input_size=(gs.best_params_['batch_size'], *X_train.shape[1:]))), 'best_model_summary.txt')

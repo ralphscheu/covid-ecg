@@ -35,6 +35,7 @@ torch.use_deterministic_algorithms(True, warn_only=True)
 @click.argument('dataset_root', required=True, type=click.Path(exists=True, file_okay=False, path_type=Path))
 def run_experiment(model, dataset_root):
     start_time = time.monotonic()
+    mlflow.sklearn.autolog()
     experiment = mlflow.set_experiment(experiment_name=Path(dataset_root).stem)
     with mlflow.start_run(experiment_id=experiment.experiment_id):
         conf = utils.load_exp_model_conf(os.path.join(os.getenv('PROJECT_ROOT'), 'conf', 'train_conf.yaml'))
@@ -59,7 +60,6 @@ def run_experiment(model, dataset_root):
 
         clf = utils.build_model(model, conf, train_dataset)
 
-        mlflow.sklearn.autolog()
         gs = GridSearchCV(clf, conf['grid_search'],
             scoring=sklearn.metrics.get_scorer('roc_auc'),
             cv=int(conf['num_cv_folds']), refit=True, error_score='raise', verbose=4)
