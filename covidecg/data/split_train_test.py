@@ -12,10 +12,10 @@ import os
 
 
 @click.command()
-# @click.option('--model', required=True, type=click.Choice(['CNN3DSeqPool', 'CNN3DSeqLSTM']))
+@click.option('--test-ratio', default=0.2, type=float)
 @click.argument('in_dir', required=True, type=click.Path(exists=True, file_okay=False, path_type=pathlib.Path))
 @click.argument('out_dir', required=True, type=click.Path(exists=False, file_okay=False, path_type=pathlib.Path))
-def main(in_dir, out_dir):
+def main(test_ratio, in_dir, out_dir):
     
     dataset = torchvision.datasets.ImageFolder(in_dir)
     out_dir_train = out_dir / 'train'
@@ -26,6 +26,13 @@ def main(in_dir, out_dir):
     os.makedirs(out_dir_test)
     os.makedirs(out_dir_test / dataset.classes[0])
     os.makedirs(out_dir_test / dataset.classes[1])
+    
+    logging.basicConfig(level=logging.INFO, format=os.getenv('LOG_FORMAT'), handlers=[logging.StreamHandler(), logging.FileHandler(out_dir / 'split_train_test.log')])
+    
+    logging.info(f"Splitting samples into training and testing sets")
+    logging.info(f"Input directory: {in_dir.resolve()}")
+    logging.info(f"Output directory: {out_dir.resolve()}")
+    logging.info(f"Train size: {1-test_ratio} | Test size: {test_ratio}")
     
     logging.basicConfig(
         level=os.getenv('LOG_LEVEL', default='INFO'), format=os.getenv('LOG_FORMAT'),
@@ -38,8 +45,7 @@ def main(in_dir, out_dir):
     y = np.array(dataset.targets)
     dataset_filepaths = list(np.array(dataset.samples)[:, 0])
     subjects = np.array([re.search(r'\/[a-z]+(\d+)_', p).group(1) for p in dataset_filepaths])
-    test_size = 0.2
-    cv = StratifiedGroupKFold(n_splits=int(1/test_size))
+    cv = StratifiedGroupKFold(n_splits=int(1 / test_ratio))
     train_idx, test_idx = next(cv.split(X, y, subjects))
     logging.info(f"ORIGINAL POSITIVE RATIO: {y.mean()}")
     logging.info(f"TRAIN RATIO:           : {len(train_idx) / len(dataset)}")
