@@ -2,14 +2,18 @@ covid-ecg
 ==============================
 
 ## Data structure and naming scheme
-- **recordings**: A recorded continuos ECG snippet of e.g. 10s length.
-- **sessions**: There are one ore more sessions available for each patient. One session can consist of one or more snippets of typically 10s length which were recorded shortly after another.
+- `data/raw`: Dataset extracted from MMC ECG software system
+- `data/external`: [ECG Dataset](https://data.mendeley.com/datasets/gwbz3fsgp8/1) published in [Khan2021](https://pubmed.ncbi.nlm.nih.gov/33521183/) 
+- `data/interim`: ECG samples in `csv` or `png` form
+- `data/processed`: Samples split into train and test sets for different classification tasks
+
 
 ## Set up environment variables
 Some environment variables are being read from a `.env` file.
-Create `./.env` in the repository root and provide the following variables according to your setup:
+Create `./.env` in the repository root and adjust the following variables according to your setup:
 ```
 LOG_LEVEL=INFO
+LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
 SAMPLING_RATE=500
 PROJECT_ROOT=~/covid-ecg
 CUBLAS_WORKSPACE_CONFIG=:4096:8
