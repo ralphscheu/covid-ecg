@@ -42,6 +42,13 @@ def remove_background_grid(img):
     img = filter_fn(img).astype('float32')
     return img
 
+def do_enhance(im):
+    decision_value = 220
+    im_contrast = im.copy()
+    im_contrast[im_contrast < decision_value] = 0
+    im_contrast[im_contrast >= decision_value] = 255
+    return im_contrast
+
 def ecgsheet_to_ecgimgdata(im, img_height=100):
     im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY )  # convert to grayscale
     lead_I = im[ECGSHEET_ROW0_TOP:ECGSHEET_ROW0_BOTTOM, ECGSHEET_COL0_LEFT:ECGSHEET_COL0_RIGHT]
@@ -67,7 +74,7 @@ def ecgsheet_to_ecgimgdata(im, img_height=100):
     return arr
 
 
-def binder_to_ecgimgdata(img, img_height):
+def binder_to_ecgimgdata(img, img_height, enhance):
     img_color = img.copy()
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY )  # convert to grayscale
     # Crop on grayscale version to remove whitespace
@@ -98,6 +105,8 @@ def binder_to_ecgimgdata(img, img_height):
     for lead in [lead_I, lead_II, lead_III, lead_aVR, lead_aVL, lead_aVF, lead_V1, lead_V2, lead_V3, lead_V4, lead_V5, lead_V6]:
         # lead.shape[1] * (100/70) -> expand width by (100/70) so 100px equals 1 second as in other data sources
         lead = cv2.resize(lead, (int(lead.shape[1] * (100.0/70.0)), img_height), interpolation=cv2.INTER_AREA)
+        if enhance:
+            lead = do_enhance(lead)
         arr.append(lead)
     arr = np.stack(arr, axis=0)
     return arr
@@ -108,7 +117,9 @@ def binder_to_ecgimgdata(img, img_height):
 @click.option('--output-dir', required=True, type=click.Path(path_type=Path, file_okay=False))
 @click.option('--input-layout', required=True, type=click.Choice(['ecgsheet', 'binder']))
 @click.option('--img-height', default=100, type=int)
-def main(in_file, output_dir, input_layout, img_height):
+@click.option('--enhance', is_flag=True, default=False)
+def main(in_file, output_dir, input_layout, img_height, enhance):
+    
     os.makedirs(output_dir, exist_ok=True)
 
     input_img = cv2.imread(str(in_file))  # load ECG image
@@ -116,7 +127,7 @@ def main(in_file, output_dir, input_layout, img_height):
     if input_layout == 'ecgsheet':
         ecg_img_data = ecgsheet_to_ecgimgdata(input_img, img_height)  # 3D numpy array containing extracted images for 12 ECG leads
     elif input_layout == 'binder':
-        ecg_img_data = binder_to_ecgimgdata(input_img, img_height)
+        ecg_img_data = binder_to_ecgimgdata(input_img, img_height, enhance)
 
     ecg_leads_grid_savepath = os.path.join(output_dir, in_file.stem + '.png')
     ecg_leads_grid = data_utils.generate_ecg_leads_grid(ecg_img_data)
