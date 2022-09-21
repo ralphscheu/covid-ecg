@@ -31,7 +31,7 @@ torch.use_deterministic_algorithms(True, warn_only=True)
 
 
 @click.command()
-@click.option('--model', required=True, type=click.Choice(['CNN3DSeqPool', 'CNN3DSeqLSTM']))
+@click.option('--model', required=True, type=str)
 @click.argument('dataset_root', required=True, type=click.Path(exists=True, file_okay=False, path_type=Path))
 def run_experiment(model, dataset_root):
     start_time = time.monotonic()
