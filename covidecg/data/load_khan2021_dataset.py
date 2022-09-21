@@ -42,8 +42,7 @@ def remove_background_grid(img):
     img = filter_fn(img).astype('float32')
     return img
 
-def do_enhance(im):
-    decision_value = 220
+def do_enhance(im, decision_value=220):
     im_contrast = im.copy()
     im_contrast[im_contrast < decision_value] = 0
     im_contrast[im_contrast >= decision_value] = 255
@@ -74,7 +73,7 @@ def ecgsheet_to_ecgimgdata(im, img_height=100):
     return arr
 
 
-def binder_to_ecgimgdata(img, img_height, enhance):
+def binder_to_ecgimgdata(img, img_height, enhance, decision_value):
     img_color = img.copy()
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY )  # convert to grayscale
     # Crop on grayscale version to remove whitespace
@@ -88,25 +87,27 @@ def binder_to_ecgimgdata(img, img_height, enhance):
 
     lead_width, lead_height = 145, 84
     row0_baseline, row1_baseline, row2_baseline = 60, 168, 277
-    lead_I =    img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, 34:34+lead_width]
-    lead_II =   img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, 34:34+lead_width]
-    lead_III =  img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, 34:34+lead_width]
-    lead_aVR =  img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, 223:223+lead_width]
-    lead_aVL =  img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, 223:223+lead_width]
-    lead_aVF =  img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, 223:223+lead_width]
-    lead_V1 =   img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, 391:391+lead_width]
-    lead_V2 =   img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, 391:391+lead_width]
-    lead_V3 =   img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, 391:391+lead_width]
-    lead_V4 =   img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, 566:566+lead_width]
-    lead_V5 =   img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, 566:566+lead_width]
-    lead_V6 =   img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, 566:566+lead_width]
+    col0_left, col1_left, col2_left, col3_left = 34, 223, 391, 566
+    
+    lead_I =    img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, col0_left:col0_left+lead_width]
+    lead_II =   img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, col0_left:col0_left+lead_width]
+    lead_III =  img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, col0_left:col0_left+lead_width]
+    lead_aVR =  img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, col1_left:col1_left+lead_width]
+    lead_aVL =  img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, col1_left:col1_left+lead_width]
+    lead_aVF =  img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, col1_left:col1_left+lead_width]
+    lead_V1 =   img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, col2_left:col2_left+lead_width]
+    lead_V2 =   img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, col2_left:col2_left+lead_width]
+    lead_V3 =   img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, col2_left:col2_left+lead_width]
+    lead_V4 =   img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, col3_left:col3_left+lead_width]
+    lead_V5 =   img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, col3_left:col3_left+lead_width]
+    lead_V6 =   img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, col3_left:col3_left+lead_width]
     
     arr = []
     for lead in [lead_I, lead_II, lead_III, lead_aVR, lead_aVL, lead_aVF, lead_V1, lead_V2, lead_V3, lead_V4, lead_V5, lead_V6]:
         # lead.shape[1] * (100/70) -> expand width by (100/70) so 100px equals 1 second as in other data sources
         lead = cv2.resize(lead, (int(lead.shape[1] * (100.0/70.0)), img_height), interpolation=cv2.INTER_AREA)
         if enhance:
-            lead = do_enhance(lead)
+            lead = do_enhance(lead, decision_value)
         arr.append(lead)
     arr = np.stack(arr, axis=0)
     return arr
@@ -118,7 +119,8 @@ def binder_to_ecgimgdata(img, img_height, enhance):
 @click.option('--input-layout', required=True, type=click.Choice(['ecgsheet', 'binder']))
 @click.option('--img-height', default=100, type=int)
 @click.option('--enhance', is_flag=True, default=False)
-def main(in_file, output_dir, input_layout, img_height, enhance):
+@click.option('--enhance-decision-value', default=220, type=int)
+def main(in_file, output_dir, input_layout, img_height, enhance, enhance_decision_value):
     
     os.makedirs(output_dir, exist_ok=True)
 
@@ -127,7 +129,7 @@ def main(in_file, output_dir, input_layout, img_height, enhance):
     if input_layout == 'ecgsheet':
         ecg_img_data = ecgsheet_to_ecgimgdata(input_img, img_height)  # 3D numpy array containing extracted images for 12 ECG leads
     elif input_layout == 'binder':
-        ecg_img_data = binder_to_ecgimgdata(input_img, img_height, enhance)
+        ecg_img_data = binder_to_ecgimgdata(input_img, img_height, enhance, enhance_decision_value)
 
     ecg_leads_grid_savepath = os.path.join(output_dir, in_file.stem + '.png')
     ecg_leads_grid = data_utils.generate_ecg_leads_grid(ecg_img_data)
