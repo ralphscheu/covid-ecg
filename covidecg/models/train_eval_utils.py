@@ -128,12 +128,15 @@ def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> 
     """ Compute scores, create figures and log all metrics to MLFlow """
     
     y_pred = gs.predict(SliceDataset(test_dataset))
-    roc_auc = sklearn.metrics.roc_auc_score(y_test, y_pred)
+    y_pred_proba = gs.predict_proba(SliceDataset(test_dataset))
+    
+    roc_auc = sklearn.metrics.roc_auc_score(y_test, y_pred_proba[:, 1])
     accuracy = sklearn.metrics.accuracy_score(y_test, y_pred)
     bal_accuracy = sklearn.metrics.balanced_accuracy_score(y_test, y_pred)
     f1 = sklearn.metrics.f1_score(y_test, y_pred)
     precision = sklearn.metrics.precision_score(y_test, y_pred)
     recall = sklearn.metrics.recall_score(y_test, y_pred)
+    
     mlflow.log_metrics({
         'roc_auc': roc_auc,
         'accuracy': accuracy,
@@ -143,13 +146,13 @@ def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> 
         'recall': recall
     })
     
-    # Generate Confusion Matrix
+    # Generate and save Confusion Matrix
     conf_matrix = sklearn.metrics.confusion_matrix(y_test, y_pred)
     mlflow.log_text(str(conf_matrix), 'confusion_matrix.txt')
     conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test, display_labels=test_dataset.classes, cmap='Blues', normalize='true').figure_
     mlflow.log_figure(conf_matrix_fig, 'confusion_matrix.png')
     
-    # Generate ROC curve
+    # Generate and save ROC curve
     roc_curve_fig = sklearn.metrics.RocCurveDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test).figure_
     mlflow.log_figure(roc_curve_fig, 'roc_curve.png')
     
