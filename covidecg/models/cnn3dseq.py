@@ -1,8 +1,7 @@
 import os
 import numpy as np
 import torch.functional as F
-import torch.nn as nn
-import torchvision.models
+from torch import nn
 import torch
 import logging
 
@@ -32,14 +31,47 @@ def cnn3dseq_conv_layer(dropout, **kwargs):
     )
 
 
+class SelfAttentionPooling(nn.Module):
+    """
+    Implementation of SelfAttentionPooling 
+    Original Paper: Self-Attention Encoding and Pooling for Speaker Recognition
+    https://arxiv.org/pdf/2008.01077v1.pdf
+    """
+    def __init__(self):
+        szoesuper().__init__()
+        self.W = nn.LazyLinear(1)
+        
+    def forward(self, batch_rep):
+        """
+        input:
+            batch_rep : size (N, T, H), N: batch size, T: sequence length, H: Hidden dimension
+        
+        attention_weight:
+            att_w : size (N, T, 1)
+        
+        return:
+            utter_rep: size (N, H)
+        """
+        softmax = nn.functional.softmax
+        att_w = softmax(self.W(batch_rep).squeeze(-1)).unsqueeze(-1)
+        utter_rep = torch.sum(batch_rep * att_w, dim=1)  # compute weighted sum using Self Attention weights for each timestep
+
+        return utter_rep
+
+
 class CNN3DSeq(nn.Module):
-    def __init__(self, dropout, reduction_size, conv_kernel_size=(3, 3, 3)):
+    def __init__(self, dropout, reduction_size, conv_kernel_size):
         super().__init__()
         self.conv1 = cnn3dseq_conv_layer(dropout=dropout, in_channels=1, out_channels=8, kernel_size=conv_kernel_size, stride=1, padding='same')
         self.conv2 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=conv_kernel_size, stride=1, padding='same')
         self.conv3 = cnn3dseq_conv_layer(dropout=dropout, in_channels=8, out_channels=8, kernel_size=conv_kernel_size, stride=1, padding='same')
-        self.reduction = nn.LazyLinear(reduction_size)
+        
+        self.reduction_size = reduction_size
+        if self.reduction_size > 0:
+            self.reduction = nn.LazyLinear(reduction_size)
+        
         self.classifier = nn.Sequential(nn.LazyLinear(2), nn.Softmax(dim=-1))
+        
     
     def forward_cnn3d(self, x):
         batch_size, timesteps, d1, d2, d3 = x.size()
@@ -64,7 +96,7 @@ class CNN3DSeq(nn.Module):
 
 class CNN3DSeqMeanStdPool(CNN3DSeq):
     """ CNN3DSeq variant applying Mean+Std Pooling across timesteps """
-    def __init__(self, dropout=0.1, reduction_size=1024, conv_kernel_size=(3, 3, 3)):
+    def __init__(self, dropout=0.1, reduction_size=-1, conv_kernel_size=(3, 3, 3)):
         super().__init__(dropout=dropout, reduction_size=reduction_size, conv_kernel_size=conv_kernel_size)
         self.pooling = MeanStdPool()
 
@@ -77,8 +109,9 @@ class CNN3DSeqMeanStdPool(CNN3DSeq):
         """
         logging.debug(f"model input: {x.shape} (batch_size, timesteps, d1, d2, d3)")
         x = self.forward_cnn3d(x)
-        x = self.reduction(x)
-        logging.debug(f"reduction layer output: {x.shape}")
+        if self.reduction_size > 0:
+            x = self.reduction(x)
+            logging.debug(f"reduction layer output: {x.shape}")
         x = self.pooling(x)
         logging.debug(f"pooling output: {x.shape}")
         x = self.classifier(x)
@@ -86,11 +119,16 @@ class CNN3DSeqMeanStdPool(CNN3DSeq):
         return x
 
 
-class CNN3DSeqLSTM(CNN3DSeq):
-    """ CNN3DSeq variant applying one unidirectional LSTM layer across timesteps """
-    def __init__(self, dropout=0.1, reduction_size=1024, conv_kernel_size=(3, 3, 3), lstm_hidden_size=200):
+class CNN3DSeqReducedMeanStdPool(CNN3DSeqMeanStdPool):
+    def __init__(self, dropout=0.1, conv_kernel_size=(3, 3, 3)):
+        super().__init__(reduction_size=1024)
+
+
+class CNN3DSeqAttnPool(CNN3DSeq):
+    """ CNN3DSeq variant applying Self-Attention Pooling across timesteps """
+    def __init__(self, dropout=0.1, reduction_size=-1, conv_kernel_size=(3, 3, 3)):
         super().__init__(dropout=dropout, reduction_size=reduction_size, conv_kernel_size=conv_kernel_size)
-        self.rnn = nn.LSTM(input_size=1024, hidden_size=lstm_hidden_size, batch_first=True)
+        self.pooling = SelfAttentionPooling()  # input_dim=self.reduction_size if self.reduction_size > 0 else 3456
 
     def forward(self, x):
         """Forward step
@@ -101,8 +139,43 @@ class CNN3DSeqLSTM(CNN3DSeq):
         """
         logging.debug(f"model input: {x.shape} (batch_size, timesteps, d1, d2, d3)")
         x = self.forward_cnn3d(x)
-        x = self.reduction(x)
-        logging.debug(f"reduction layer output: {x.shape}")
+        
+        if self.reduction_size > 0:
+            x = self.reduction(x)
+            logging.debug(f"reduction layer output: {x.shape}")
+        x = self.pooling(x)
+        logging.debug(f"pooling output: {x.shape}")
+        x = self.classifier(x)
+        logging.debug(f"classifier output: {x.shape}")
+        return x
+
+
+class CNN3DSeqReducedAttnPool(CNN3DSeqAttnPool):
+    def __init__(self, dropout=0.1, conv_kernel_size=(3, 3, 3)):
+        super().__init__(reduction_size=1024)
+
+
+class CNN3DSeqLSTM(CNN3DSeq):
+    """ CNN3DSeq variant applying one unidirectional LSTM layer across timesteps """
+    def __init__(self, dropout=0.1, reduction_size=-1, conv_kernel_size=(3, 3, 3), lstm_hidden_size=200):
+        super().__init__(dropout=dropout, reduction_size=reduction_size, conv_kernel_size=conv_kernel_size)
+        self.rnn = nn.LSTM(input_size=self.reduction_size if self.reduction_size > 0 else 3456, 
+                           hidden_size=lstm_hidden_size, batch_first=True)
+
+    def forward(self, x):
+        """Forward step
+        Args:
+            x (np.ndarray): Input array of shape (batch, timesteps, leads, height, width)
+        Returns:
+            np.ndarray: Softmax output
+        """
+        logging.debug(f"model input: {x.shape} (batch_size, timesteps, d1, d2, d3)")
+        x = self.forward_cnn3d(x)
+        
+        if self.reduction_size > 0:
+            x = self.reduction(x)
+            logging.debug(f"reduction layer output: {x.shape}")
+        
         x, _ = self.rnn(x)
         x = x[:, -1, :]  # use last LSTM output
         logging.debug(f"rnn output: {x.shape}")        
@@ -111,7 +184,9 @@ class CNN3DSeqLSTM(CNN3DSeq):
         return x
 
 
-# TODO: add CNN3DSeqAttnPool model
+class CNN3DSeqReducedLSTM(CNN3DSeqLSTM):
+    def __init__(self, dropout=0.1, conv_kernel_size=(3, 3, 3)):
+        super().__init__(reduction_size=1024)
 
 
 # TODO: add CNN3DSeqAttnLSTM model
