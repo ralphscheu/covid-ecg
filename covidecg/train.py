@@ -32,12 +32,13 @@ torch.use_deterministic_algorithms(True, warn_only=True)
 
 @click.command()
 @click.option('--model', required=True, type=str)
+@click.option('--run-name', default='', type=str)
 @click.argument('dataset_root', required=True, type=click.Path(exists=True, file_okay=False, path_type=Path))
-def run_experiment(model, dataset_root):
+def run_experiment(model, run_name, dataset_root):
     start_time = time.monotonic()
     mlflow.sklearn.autolog()
     experiment = mlflow.set_experiment(experiment_name=Path(dataset_root).stem)
-    with mlflow.start_run(experiment_id=experiment.experiment_id):
+    with mlflow.start_run(experiment_id=experiment.experiment_id, run_name=run_name):
         conf = utils.load_exp_model_conf(os.path.join(os.getenv('PROJECT_ROOT'), 'conf', 'train_conf.yaml'))
 
         # Load dataset
