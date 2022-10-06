@@ -91,3 +91,7 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
+
+/covidecg/models/SRGAN-PyTorch
+/pretrained_models
