@@ -70,47 +70,47 @@ python covidecg/data/filter_and_symlink.py --min-length 5000 --max-length 5000 d
 # ### LOAD KHAN2021 DATA ###
 # ##########################
 
-# rm -rf t-dir data/interim/khan2021/normal
-# for file in ./data/external/Normal\ Person\ ECG\ Images\ \(859\)/Normal*.jpg; do
-#     echo "Processing ${file}"
-#     python3 covidecg/data/load_khan2021_dataset.py --img-height 100 \
-#         --output-dir data/interim/khan2021/normal \
-#         --input-layout ecgsheet \
-#         "${file}"
-# done
+rm -rf t-dir data/interim/khan2021/normal
+for file in ./data/external/Normal\ Person\ ECG\ Images\ \(859\)/Normal*.jpg; do
+    echo "Processing ${file}"
+    python3 covidecg/data/load_khan2021_dataset.py --img-height 100 \
+        --output-dir data/interim/khan2021/normal \
+        --input-layout ecgsheet \
+        "${file}"
+done
 
-# rm -rf data/interim/khan2021/covid
-# for file in ./data/external/ECG\ Images\ of\ COVID-19\ Patients\ \(250\)/Binder*.jpg; do
-#     echo "Processing ${file}"
-# 	python3 covidecg/data/load_khan2021_dataset.py --img-height 100 \
-# 		--output-dir data/interim/khan2021/covid \
-# 		--input-layout binder \
-#         "${file}"
-# done
-# for file in ./data/external/ECG\ Images\ of\ COVID-19\ Patients\ \(250\)/COVID*.jpg; do
-#     echo "Processing ${file}"
-# 	python3 covidecg/data/load_khan2021_dataset.py --img-height 100 \
-# 		--output-dir data/interim/khan2021/covid \
-# 		--input-layout ecgsheet \
-#         "${file}"
-# done
-
-
-
-
-
-# Generate train/test sets for mmc_postcovid_vs_ctrl
-# rm -rf data/processed/mmc_postcovid_vs_ctrl
-# splitfolders --output data/processed/mmc_postcovid_vs_ctrl --ratio .8 .2 -- data/interim/mmc
-
-# # Generate train/test sets for mmc_10s_postcovid_vs_ctrl
-# rm -rf data/processed/mmc_10s_postcovid_vs_ctrl
-# splitfolders --output data/processed/mmc_10s_postcovid_vs_ctrl --ratio .8 .2 -- data/interim/mmc_10s
+rm -rf data/interim/khan2021/covid
+# Binder scans
+for file in ./data/external/ECG\ Images\ of\ COVID-19\ Patients\ \(250\)/Binder*.jpg; do
+    echo "Processing ${file}"
+	python3 covidecg/data/load_khan2021_dataset.py --img-height 100 \
+		--output-dir data/interim/khan2021/covid \
+		--input-layout binder \
+        "${file}"
+done
+# Standardized ECG Printout scans
+for file in ./data/external/ECG\ Images\ of\ COVID-19\ Patients\ \(250\)/COVID*.jpg; do
+    echo "Processing ${file}"
+	python3 covidecg/data/load_khan2021_dataset.py --img-height 100 \
+		--output-dir data/interim/khan2021/covid \
+		--input-layout ecgsheet \
+        "${file}"
+done
 
 
 
 
-# # Generate train/test sets for khan2021_covid_vs_normal
-# rm -rf data/processed/khan2021_covid_vs_normal
-# splitfolders --output data/processed/khan2021_covid_vs_normal --ratio .8 .2 -- data/interim/khan2021
 
+# Generate train/test sets for mmc_postcovid_mmc_ctrl
+rm -rf data/processed/mmc_postcovid_mmc_ctrl
+python3 covidecg/data/split_train_test.py --test-ratio 0.2 data/interim/mmc data/processed/mmc_postcovid_mmc_ctrl
+    
+# Generate train/test sets for mmc_10s_postcovid_mmc_10s_ctrl
+rm -rf data/processed/mmc_10s_postcovid_mmc_10s_ctrl
+python3 covidecg/data/split_train_test.py --test-ratio 0.2 data/interim/mmc_10s data/processed/mmc_10s_postcovid_mmc_10s_ctrl
+
+
+# Generate train/test sets for khan2021_covid_khan2021_normal
+rm -rf data/processed/khan2021_covid_khan2021_normal
+splitfolders --output data/processed/khan2021_covid_khan2021_normal --ratio .8 .2 -- data/interim/khan2021
+mv data/processed/khan2021_covid_khan2021_normal/val data/processed/khan2021_covid_khan2021_normal/test
