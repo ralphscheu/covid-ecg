@@ -42,6 +42,7 @@ def run_experiment(model, run_name, dataset_root):
         conf = utils.load_exp_model_conf(os.path.join(os.getenv('PROJECT_ROOT'), 'conf', 'train_conf.yaml'))
 
         # Load dataset
+        logging.info(f"Loading train and test data from {dataset_root}")
         train_dataset = torchvision.datasets.ImageFolder(dataset_root / 'train', transform=torchvision.transforms.Compose([
             torchvision.transforms.Grayscale(),
             torchvision.transforms.ToTensor(),
@@ -58,6 +59,9 @@ def run_experiment(model, run_name, dataset_root):
             SliceTimesteps()
             ]))
         y_test = np.array(test_dataset.targets)
+        logging.info(f"Train: {len(y_train)} samples - {str(np.unique(y_train, return_counts=True))}")
+        logging.info(f"Train: {len(y_test)} samples - {str(np.unique(y_test, return_counts=True))}")
+        mlflow.log_text(LOG_STREAM.getvalue(), 'train.log')
 
         clf = utils.build_model(model, conf, train_dataset)
 
