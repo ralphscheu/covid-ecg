@@ -38,7 +38,7 @@ class SelfAttentionPooling(nn.Module):
     https://arxiv.org/pdf/2008.01077v1.pdf
     """
     def __init__(self):
-        szoesuper().__init__()
+        super().__init__()
         self.W = nn.LazyLinear(1)
         
     def forward(self, batch_rep):
