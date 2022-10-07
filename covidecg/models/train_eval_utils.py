@@ -156,7 +156,7 @@ def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> 
     roc_curve_fig = sklearn.metrics.RocCurveDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test).figure_
     mlflow.log_figure(roc_curve_fig, 'roc_curve.png')
     
-    pr_curve_fig = sklearn.metrics.PrecisionRecallDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test)
+    pr_curve_fig = sklearn.metrics.PrecisionRecallDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test).figure_
     mlflow.log_figure(pr_curve_fig, 'precision_recall_curve.png')
     
     # Generate train&valid Loss curve
