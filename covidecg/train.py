@@ -30,6 +30,19 @@ torch.cuda.manual_seed(RANDOM_SEED)
 torch.use_deterministic_algorithms(True, warn_only=True)
 
 
+def update_mlflow_logfile():
+    mlflow.log_text(LOG_STREAM.getvalue(), 'train.log')
+
+
+IMAGE_TRANSFORMS = torchvision.transforms.Compose([
+    torchvision.transforms.Grayscale(),
+    torchvision.transforms.ToTensor(),
+    InvertGrayscale(),
+    SliceEcgGrid(),
+    SliceTimesteps()
+    ])
+        
+
 @click.command()
 @click.option('--model', required=True, type=str)
 @click.option('--run-name', default='', type=str)
@@ -40,48 +53,45 @@ def run_experiment(model, run_name, dataset_root):
     experiment = mlflow.set_experiment(experiment_name=Path(dataset_root).stem)
     with mlflow.start_run(experiment_id=experiment.experiment_id, run_name=run_name):
         conf = utils.load_exp_model_conf(os.path.join(os.getenv('PROJECT_ROOT'), 'conf', 'train_conf.yaml'))
+        
 
+        #
         # Load dataset
+        #
         logging.info(f"Loading train and test data from {dataset_root}")
-        train_dataset = torchvision.datasets.ImageFolder(dataset_root / 'train', transform=torchvision.transforms.Compose([
-            torchvision.transforms.Grayscale(),
-            torchvision.transforms.ToTensor(),
-            InvertGrayscale(),
-            SliceEcgGrid(),
-            SliceTimesteps()
-            ]))
+        update_mlflow_logfile()
+        
+        train_dataset = torchvision.datasets.ImageFolder(dataset_root / 'train', transform=IMAGE_TRANSFORMS)
         y_train = np.array(train_dataset.targets)
-        test_dataset = torchvision.datasets.ImageFolder(dataset_root / 'test', transform=torchvision.transforms.Compose([
-            torchvision.transforms.Grayscale(),
-            torchvision.transforms.ToTensor(),
-            InvertGrayscale(),
-            SliceEcgGrid(), 
-            SliceTimesteps()
-            ]))
+        test_dataset = torchvision.datasets.ImageFolder(dataset_root / 'test', transform=IMAGE_TRANSFORMS)
         y_test = np.array(test_dataset.targets)
+        
         logging.info(f"Class labels targets: {train_dataset.class_to_idx}")
         logging.info(f"Train: {len(y_train)} samples - {str(np.unique(y_train, return_counts=True))}")
         logging.info(f"Train: {len(y_test)} samples - {str(np.unique(y_test, return_counts=True))}")
-        mlflow.log_text(LOG_STREAM.getvalue(), 'train.log')
+        update_mlflow_logfile()
 
         clf = utils.build_model(model, conf, train_dataset)
+        update_mlflow_logfile()
 
         gs = GridSearchCV(clf, conf['grid_search'],
             scoring=sklearn.metrics.get_scorer('roc_auc'),
             cv=int(conf['num_cv_folds']), refit=True, error_score='raise', verbose=4)
         
         logging.info(f"Start training on {len(os.environ['CUDA_VISIBLE_DEVICES'].split(','))} GPUs ({os.environ['CUDA_VISIBLE_DEVICES']})")
+        update_mlflow_logfile()
         gs.fit(SliceDataset(train_dataset), y_train)
 
         logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
         logging.info(f"GridSearchCV - Best Params: {gs.best_params_}")
         logging.info("Evaluating best model as determined by Grid Search...")
+        update_mlflow_logfile()
         utils.evaluate_experiment(test_dataset, y_test, gs)
         
         end_time = time.monotonic()
         logging.info(f"Done. Finished in {timedelta(seconds=end_time - start_time)}")
         
-        mlflow.log_text(LOG_STREAM.getvalue(), 'train.log')
+        update_mlflow_logfile()
 
 
 if __name__ == '__main__':

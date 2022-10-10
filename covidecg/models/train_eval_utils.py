@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 from typing import Tuple
 # import torchinfo
 from skorch.helper import SliceDataset
+from torch.nn.utils.rnn import pad_sequence
 
 
 def load_exp_model_conf(model_conf_path):
@@ -85,8 +86,8 @@ def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipelin
     
     
     def pad_batch(batch):
+        """ Pad sequence examples in batch to common length """
         im, label = list(zip(*batch))
-        from torch.nn.utils.rnn import pad_sequence
         padded_batch = pad_sequence(im, batch_first=True, padding_value=0.0)
         label = list(label)
         label = np.array(label, dtype=np.uint8)
@@ -108,7 +109,7 @@ def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipelin
         'iterator_train__collate_fn': pad_batch,
         'iterator_train__shuffle': True,  # Shuffle training data on each epoch
         'iterator_valid__collate_fn': pad_batch,
-        'iterator_valid__shuffle': False,
+        'iterator_valid__shuffle': False, # not necessary to shuffle validation data each epoch
         'train_split': None  # disable skorch-internal train/validation split since GridSearchCV already takes care of that
     }
     
