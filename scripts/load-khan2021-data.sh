@@ -7,7 +7,7 @@
 # ### LOAD KHAN2021 DATA ###
 # ##########################
 
-rm -rf t-dir data/interim/_khan2021_normal
+rm -rf data/interim/_khan2021_normal
 # NORMAL
 for file in ./data/external/Normal\ Person\ ECG\ Images\ \(859\)/Normal*.jpg; do
     echo "Processing ${file}"
@@ -37,7 +37,7 @@ for file in ./data/external/ECG\ Images\ of\ COVID-19\ Patients\ \(250\)/COVID*.
 done
 
 
-rm -rf t-dir data/interim/_khan2021_abnormal
+rm -rf data/interim/_khan2021_abnormal
 # ABNORMAL HEARTBEAT
 for file in ./data/external/ECG Images of Patient that have abnormal heart beats (548)/HB*.jpg; do
     echo "Processing ${file}"
