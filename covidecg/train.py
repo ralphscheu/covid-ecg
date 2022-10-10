@@ -59,6 +59,7 @@ def run_experiment(model, run_name, dataset_root):
             SliceTimesteps()
             ]))
         y_test = np.array(test_dataset.targets)
+        logging.info(f"Class labels targets: {train_dataset.class_to_idx}")
         logging.info(f"Train: {len(y_train)} samples - {str(np.unique(y_train, return_counts=True))}")
         logging.info(f"Train: {len(y_test)} samples - {str(np.unique(y_test, return_counts=True))}")
         mlflow.log_text(LOG_STREAM.getvalue(), 'train.log')
