@@ -190,3 +190,6 @@ class CNN3DSeqReducedLSTM(CNN3DSeqLSTM):
 
 
 # TODO: add CNN3DSeqAttnLSTM model
+
+
+# TODO: add CNN3DSeqReducedAttnLSTM model
