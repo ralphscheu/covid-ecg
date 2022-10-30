@@ -126,8 +126,6 @@ def main(input_dir, output_dir, prefix, patients_list, min_length, max_length, s
     recordings_stress_ecg = recording_list.loc[recording_list.ecg_type == 'Belastungs']
     recordings_stress_ecg.to_csv(f'data/interim/mmc_stress_{prefix}.csv', sep=';', index=False)
     
-    # TODO save labels in text file (alternative: extract labels from filenames later on)
-    
     logger.info(f'Done. Saved csv files to {output_dir}')
 
 

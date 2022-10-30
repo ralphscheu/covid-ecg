@@ -84,9 +84,11 @@ def run_experiment(model, run_name, dataset_root):
 
         logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
         logging.info(f"GridSearchCV - Best Params: {gs.best_params_}")
-        logging.info("Evaluating best model as determined by Grid Search...")
         update_mlflow_logfile()
-        utils.evaluate_experiment(test_dataset, y_test, gs)
+        
+        logging.info("Evaluating chosen model on test dataset...")
+        utils.evaluate_experiment(test_dataset, y_test, gs.best_estimator_)
+        update_mlflow_logfile()
         
         end_time = time.monotonic()
         logging.info(f"Done. Finished in {timedelta(seconds=end_time - start_time)}")

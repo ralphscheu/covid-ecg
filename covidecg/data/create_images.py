@@ -27,7 +27,7 @@ def signal2image(signal:np.ndarray, img_height, dpi, ecg_value_range=[-1500, 149
     img = img.reshape(fig.canvas.get_width_height()[::-1] + (4,))[:, :, -1]
     assert len(np.unique(img)) > 1, "All pixels have the same value, something went wrong."
 
-    # Crop the img to remove empty space
+    # Crop the img to remove empty space on left and right
     img = ~img
     nonzero_coords = cv2.findNonZero(img) # Find all non-zero points
     x, y, w, h = cv2.boundingRect(nonzero_coords) # Find minimum spanning bounding box
