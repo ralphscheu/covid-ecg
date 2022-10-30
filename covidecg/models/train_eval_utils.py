@@ -125,11 +125,11 @@ def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipelin
 
 from skorch.helper import SliceDataset
 
-def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> None:
+def evaluate_experiment(test_dataset, y_test, best_model) -> None:
     """ Compute scores, create figures and log all metrics to MLFlow """
     
-    y_pred = gs.predict(SliceDataset(test_dataset))
-    y_pred_proba = gs.predict_proba(SliceDataset(test_dataset))
+    y_pred = best_model.predict(SliceDataset(test_dataset))
+    y_pred_proba = best_model.predict_proba(SliceDataset(test_dataset))
     
     roc_auc = sklearn.metrics.roc_auc_score(y_test, y_pred_proba[:, 1])
     accuracy = sklearn.metrics.accuracy_score(y_test, y_pred)
@@ -150,22 +150,21 @@ def evaluate_experiment(test_dataset, y_test, gs:imblearn.pipeline.Pipeline) -> 
     # Generate and save Confusion Matrix
     conf_matrix = sklearn.metrics.confusion_matrix(y_test, y_pred)
     mlflow.log_text(str(conf_matrix), 'confusion_matrix.txt')
-    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test, display_labels=test_dataset.classes, cmap='Blues', normalize='true').figure_
+    conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(best_model, SliceDataset(test_dataset), y_test, display_labels=test_dataset.classes, cmap='Blues', normalize='true').figure_
     mlflow.log_figure(conf_matrix_fig, 'confusion_matrix.png')
     
     # Generate and save ROC curve
-    roc_curve_fig = sklearn.metrics.RocCurveDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test).figure_
+    roc_curve_fig = sklearn.metrics.RocCurveDisplay.from_estimator(best_model, SliceDataset(test_dataset), y_test).figure_
     mlflow.log_figure(roc_curve_fig, 'roc_curve.png')
     
-    pr_curve_fig = sklearn.metrics.PrecisionRecallDisplay.from_estimator(gs, SliceDataset(test_dataset), y_test).figure_
+    pr_curve_fig = sklearn.metrics.PrecisionRecallDisplay.from_estimator(best_model, SliceDataset(test_dataset), y_test).figure_
     mlflow.log_figure(pr_curve_fig, 'precision_recall_curve.png')
     
     # Generate train&valid Loss curve
     loss_fig = plt.figure()
-    plt.plot(gs.best_estimator_.history[:, 'train_loss'], label='train loss')
+    plt.plot(best_model.history[:, 'train_loss'], label='train loss')
     plt.legend()
     mlflow.log_figure(loss_fig, 'train_loss.png')
     
-    mlflow.sklearn.log_model(gs.best_estimator_, 'best_model')
-    mlflow.log_text(str(gs.best_estimator_), 'model_topology.txt')
-    # mlflow.log_text(str(torchinfo.summary(gs.best_estimator_.module, input_size=(gs.best_params_['batch_size'], *X_train.shape[1:]))), 'best_model_summary.txt')
+    mlflow.sklearn.log_model(best_model, 'best_model')
+    mlflow.log_text(str(best_model), 'model_topology.txt')
