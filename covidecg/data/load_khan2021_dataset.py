@@ -100,12 +100,10 @@ def slice_ecgsheet2_scan(img, img_height):
         lead = cv2.resize(lead, (lead.shape[1] // 2, img_height), interpolation=cv2.INTER_AREA)
         arr.append(lead)
     arr = np.stack(arr, axis=0)
-    print(f"arr: {arr.shape}")
     return arr
 
 
 def slice_binder_scan(img, img_height, binder_layout):
-    print(f"img.shape: {img.shape}")
     if binder_layout == 'portrait':
         lead_width, lead_height = 145, 84
         row0_baseline, row1_baseline, row2_baseline = 42, 152, 264
