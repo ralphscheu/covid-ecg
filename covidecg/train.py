@@ -20,6 +20,8 @@ import warnings
 warnings.filterwarnings('ignore')
 import torchvision
 from skorch.helper import SliceDataset
+import warnings
+warnings.filterwarnings('ignore')
 
 # Ensure reproducibility
 RANDOM_SEED = 0
@@ -81,6 +83,12 @@ def run_experiment(model, run_name, dataset_root):
         logging.info(f"Start training on {len(os.environ['CUDA_VISIBLE_DEVICES'].split(','))} GPUs ({os.environ['CUDA_VISIBLE_DEVICES']})")
         update_mlflow_logfile()
         gs.fit(SliceDataset(train_dataset), y_train)
+        
+        
+        import pandas as pd
+        pd.DataFrame(gs.cv_results_).to_csv('/tmp/covidecg_cv_results_.csv', index=None, sep=';')
+        mlflow.log_artifact('/tmp/covidecg_cv_results_.csv')
+
 
         logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
         logging.info(f"GridSearchCV - Best Params: {gs.best_params_}")

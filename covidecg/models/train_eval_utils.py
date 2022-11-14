@@ -10,6 +10,7 @@ from sklearn.preprocessing import FunctionTransformer
 import skorch
 from skorch.callbacks import EpochScoring, EarlyStopping, MlflowLogger, LRScheduler, ProgressBar
 from covidecg.models.cnn3dseq import *
+from covidecg.models.cnn2dseq import *
 import mlflow
 import torch.nn as nn
 import sklearn.metrics
@@ -26,6 +27,8 @@ from typing import Tuple
 # import torchinfo
 from skorch.helper import SliceDataset
 from torch.nn.utils.rnn import pad_sequence
+import warnings
+warnings.filterwarnings('ignore')
 
 
 def load_exp_model_conf(model_conf_path):
@@ -101,6 +104,7 @@ def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipelin
         'criterion__weight': class_weight,
         'callbacks': [
             EpochScoring(name='train_auc', scoring='roc_auc', on_train=True, lower_is_better=False),  # additional scores to observe
+            EpochScoring(name='train_accuracy', scoring='accuracy', on_train=True, lower_is_better=False),  # additional scores to observe
             EarlyStopping(patience=conf['early_stopping_patience'], monitor='train_loss'),  # Early Stopping based on train loss
             ProgressBar(),
             ],
@@ -159,6 +163,11 @@ def evaluate_experiment(test_dataset, y_test, best_model) -> None:
     
     pr_curve_fig = sklearn.metrics.PrecisionRecallDisplay.from_estimator(best_model, SliceDataset(test_dataset), y_test).figure_
     mlflow.log_figure(pr_curve_fig, 'precision_recall_curve.png')
+    
+    
+    # Save model history
+    best_model.history.to_file('/tmp/covidecg_best_model_history.json')
+    mlflow.log_artifact('/tmp/covidecg_best_model_history.json')
     
     # Generate train&valid Loss curve
     loss_fig = plt.figure()
