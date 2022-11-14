@@ -19,7 +19,12 @@ def crop_to_grid(im):
     # Merge the mask and crop the red regions
     mask = cv2.bitwise_or(mask1, mask2 )
     nonzero_coords = cv2.findNonZero(mask)
-    x, y, w, h = cv2.boundingRect(nonzero_coords) # Find minimum spanning bounding box
+    
+    if nonzero_coords is None:
+        # HB (400) - HB (483)
+        x, y, w, h = 68, 283, 2109, 1235
+    else:
+        x, y, w, h = cv2.boundingRect(nonzero_coords) # Find minimum spanning bounding box
     return im[y:y+h, x:x+w]
 
 
@@ -69,6 +74,36 @@ def slice_ecgsheet_scan(img, img_height):
     return arr
 
 
+
+def slice_ecgsheet2_scan(img, img_height):
+
+    lead_width, lead_height = 900, 200
+    row0_baseline, row1_baseline, row2_baseline, row3_baseline, row4_baseline, row5_baseline = 400, 569, 741, 914, 1086, 1258
+    col0_left, col1_left = 210, 1200
+
+    lead_I =    img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, col0_left:col0_left+lead_width]
+    lead_II =   img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, col0_left:col0_left+lead_width]
+    lead_III =  img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, col0_left:col0_left+lead_width]
+    lead_aVR =  img[row3_baseline - lead_height // 2:row3_baseline + lead_height // 2, col0_left:col0_left+lead_width]
+    lead_aVL =  img[row4_baseline - lead_height // 2:row4_baseline + lead_height // 2, col0_left:col0_left+lead_width]
+    lead_aVF =  img[row5_baseline - lead_height // 2:row5_baseline + lead_height // 2, col0_left:col0_left+lead_width]
+    lead_V1 =   img[row0_baseline - lead_height // 2:row0_baseline + lead_height // 2, col1_left:col1_left+lead_width]
+    lead_V2 =   img[row1_baseline - lead_height // 2:row1_baseline + lead_height // 2, col1_left:col1_left+lead_width]
+    lead_V3 =   img[row2_baseline - lead_height // 2:row2_baseline + lead_height // 2, col1_left:col1_left+lead_width]
+    lead_V4 =   img[row3_baseline - lead_height // 2:row3_baseline + lead_height // 2, col1_left:col1_left+lead_width]
+    lead_V5 =   img[row4_baseline - lead_height // 2:row4_baseline + lead_height // 2, col1_left:col1_left+lead_width]
+    lead_V6 =   img[row5_baseline - lead_height // 2:row5_baseline + lead_height // 2, col1_left:col1_left+lead_width]
+    
+    arr = []
+    for lead in [lead_I, lead_II, lead_III, lead_aVR, lead_aVL, lead_aVF, lead_V1, lead_V2, lead_V3, lead_V4, lead_V5, lead_V6]:
+        # lead.shape[1] // 2 -> reduce width by 50% so 100px equals 1 second as in other data sources
+        lead = cv2.resize(lead, (lead.shape[1] // 2, img_height), interpolation=cv2.INTER_AREA)
+        arr.append(lead)
+    arr = np.stack(arr, axis=0)
+    print(f"arr: {arr.shape}")
+    return arr
+
+
 def slice_binder_scan(img, img_height, binder_layout):
     print(f"img.shape: {img.shape}")
     if binder_layout == 'portrait':
@@ -111,7 +146,7 @@ def slice_binder_scan(img, img_height, binder_layout):
 @click.command()
 @click.argument('in_file', required=True, type=click.Path(exists=True, path_type=Path, dir_okay=False))
 @click.option('--output-dir', required=True, type=click.Path(path_type=Path, file_okay=False))
-@click.option('--input-layout', required=True, type=click.Choice(['ecgsheet', 'binder']))
+@click.option('--input-layout', required=True, type=click.Choice(['ecgsheet', 'ecgsheet2', 'binder']))
 @click.option('--img-height', default=100, type=int)
 def main(in_file, output_dir, input_layout, img_height):
     
@@ -125,23 +160,25 @@ def main(in_file, output_dir, input_layout, img_height):
     else:
         binder_layout = None
     
-    im = crop_to_grid(im)  # crop out irrelevant parts
 
     RMGRID_CUTOFF_ECGSHEET = 40
     RMGRID_CUTOFF_BINDER = 170
 
     if input_layout == 'ecgsheet':
+        im = crop_to_grid(im)  # crop out irrelevant parts
         im = remove_grid_background(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY), RMGRID_CUTOFF_ECGSHEET)  # remove grid in background
-        
         im = unsharp_mask(im)
-        
         ecg_grid_array = slice_ecgsheet_scan(im, img_height)
         
-    elif input_layout == 'binder':
+    elif input_layout == 'ecgsheet2':
         im = remove_grid_background(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY), RMGRID_CUTOFF_BINDER)  # remove grid in background
-        
         im = unsharp_mask(im)
+        ecg_grid_array = slice_ecgsheet2_scan(im, img_height)
         
+    elif input_layout == 'binder':
+        im = crop_to_grid(im)  # crop out irrelevant parts
+        im = remove_grid_background(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY), RMGRID_CUTOFF_BINDER)  # remove grid in background
+        im = unsharp_mask(im)
         ecg_grid_array = slice_binder_scan(im, img_height, binder_layout)
 
     # arrange ECG leads in grid and save as png
