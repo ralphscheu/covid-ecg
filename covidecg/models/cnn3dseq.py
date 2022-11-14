@@ -4,6 +4,7 @@ import torch.functional as F
 from torch import nn
 import torch
 import logging
+import mlflow
 
 
 ###########
@@ -56,7 +57,7 @@ class SelfAttentionPooling(nn.Module):
         att_w = softmax(self.W(batch_rep).squeeze(-1)).unsqueeze(-1)
         utter_rep = torch.sum(batch_rep * att_w, dim=1)  # compute weighted sum using Self Attention weights for each timestep
 
-        return utter_rep
+        return utter_rep, att_w
 
 
 class CNN3DSeq(nn.Module):
@@ -138,12 +139,26 @@ class CNN3DSeqAttnPool(CNN3DSeq):
             np.ndarray: Softmax output
         """
         logging.debug(f"model input: {x.shape} (batch_size, timesteps, d1, d2, d3)")
+
+        
+        # Export x and attention weights if model is being evaluated on test set
+        if self.training:
+            np.savez_compressed('/tmp/covidecg_x.npz', x=x.detach().cpu().numpy())
+            mlflow.log_artifact('/tmp/covidecg_x.npz')
+        
         x = self.forward_cnn3d(x)
         
         if self.reduction_size > 0:
             x = self.reduction(x)
             logging.debug(f"reduction layer output: {x.shape}")
-        x = self.pooling(x)
+        
+        x, att_w = self.pooling(x)
+        
+        # Export x and attention weights if model is being evaluated on test set
+        if self.training:
+            np.savez_compressed('/tmp/covidecg_att_w.npz', att_w=att_w.detach().cpu().numpy())
+            mlflow.log_artifact('/tmp/covidecg_att_w.npz')
+        
         logging.debug(f"pooling output: {x.shape}")
         x = self.classifier(x)
         logging.debug(f"classifier output: {x.shape}")
