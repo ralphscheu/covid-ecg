@@ -69,8 +69,8 @@ def run_experiment(model, run_name, dataset_root):
         y_test = np.array(test_dataset.targets)
         
         logging.info(f"Class labels targets: {train_dataset.class_to_idx}")
-        logging.info(f"Train: {len(y_train)} samples - {str(np.unique(y_train, return_counts=True))}")
-        logging.info(f"Train: {len(y_test)} samples - {str(np.unique(y_test, return_counts=True))}")
+        logging.info(f"Train on {len(y_train)} samples | class distribution: {str(np.unique(y_train, return_counts=True))}")
+        logging.info(f"Test on {len(y_test)} samples | class distribution: {str(np.unique(y_test, return_counts=True))}")
         update_mlflow_logfile()
 
         clf = utils.build_model(model, conf, train_dataset)

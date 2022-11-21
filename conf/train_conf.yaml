@@ -1,6 +1,11 @@
 grid_search:
+  # dev config
   lr: [0.0001]
   batch_size: [8]
+
+  # prod config
+  # lr: [0.0001, 0.0005]
+  # batch_size: [8, 16]
 
 early_stopping_max_epochs: 10
 early_stopping_patience: 5
