@@ -9,15 +9,17 @@ import pathlib
 import shutil
 from dotenv import find_dotenv, load_dotenv
 import os
+import covidecg.data.utils as data_utils
 
 
 @click.command()
+@click.option('--file-ext', required=True, type=str)
 @click.option('--test-ratio', default=0.2, type=float)
 @click.argument('in_dir', required=True, type=click.Path(exists=True, file_okay=False, path_type=pathlib.Path))
 @click.argument('out_dir', required=True, type=click.Path(exists=False, file_okay=False, path_type=pathlib.Path))
-def main(test_ratio, in_dir, out_dir):
+def main(file_ext, test_ratio, in_dir, out_dir):
     
-    dataset = torchvision.datasets.ImageFolder(in_dir)
+    dataset = torchvision.datasets.DatasetFolder(in_dir, loader=data_utils.load_signal, extensions=[file_ext])
     out_dir_train = out_dir / 'train'
     out_dir_test = out_dir / 'test'
     os.makedirs(out_dir_train)
