@@ -125,6 +125,21 @@ class CNN3DSeqReducedMeanStdPool(CNN3DSeqMeanStdPool):
         super().__init__(reduction_size=1024)
 
 
+
+class CNN3DSeqMeanPool(CNN3DSeqMeanStdPool):
+    """ CNN3DSeq variant applying Mean Pooling across timesteps """
+    def __init__(self, dropout=0.1, reduction_size=-1, conv_kernel_size=(3, 3, 3)):
+        super().__init__(dropout=dropout, reduction_size=reduction_size, conv_kernel_size=conv_kernel_size)
+        self.pooling = MeanPool()
+
+
+class CNN3DSeqReducedMeanPool(CNN3DSeqMeanPool):
+    """ CNN3DSeq variant applying Mean Pooling across timesteps """
+    def __init__(self, dropout=0.1, reduction_size=-1, conv_kernel_size=(3, 3, 3)):
+        super().__init__(reduction_size=1024)
+
+
+
 class CNN3DSeqAttnPool(CNN3DSeq):
     """ CNN3DSeq variant applying Self-Attention Pooling across timesteps """
     def __init__(self, dropout=0.1, reduction_size=-1, conv_kernel_size=(3, 3, 3)):
