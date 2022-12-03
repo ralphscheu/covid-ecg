@@ -119,14 +119,14 @@ def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipelin
     except:
         raise Exception(f'Invalid model name "{model_name}!')
     
-    logging.info(f"Model: {model_name}")
-    mlflow.set_tag('model', model_name)
+    print(f"Model: {model_name}")
+    mlflow.log_param('model', model_name)
     
     return clf
 
 from skorch.helper import SliceDataset
 
-def evaluate_experiment(test_dataset, y_test, best_model) -> None:
+def evaluate_experiment(test_dataset, y_test, best_model, log_to_mlflow=True) -> None:
     """ Compute scores, create figures and log all metrics to MLFlow """
     
     y_pred = best_model.predict(SliceDataset(test_dataset))
@@ -139,38 +139,51 @@ def evaluate_experiment(test_dataset, y_test, best_model) -> None:
     precision = sklearn.metrics.precision_score(y_test, y_pred)
     recall = sklearn.metrics.recall_score(y_test, y_pred)
     
-    mlflow.log_metrics({
-        'roc_auc': roc_auc,
-        'accuracy': accuracy,
-        'bal_accuracy': bal_accuracy,
-        'f1': f1,
-        'precision': precision,
-        'recall': recall
-    })
+    metrics_dict = {
+            'roc_auc': roc_auc,
+            'accuracy': accuracy,
+            'bal_accuracy': bal_accuracy,
+            'f1': f1,
+            'precision': precision,
+            'recall': recall
+        }
     
-    # Generate and save Confusion Matrix
+    # Generate Confusion Matrix
     conf_matrix = sklearn.metrics.confusion_matrix(y_test, y_pred)
-    mlflow.log_text(str(conf_matrix), 'confusion_matrix.txt')
     conf_matrix_fig = sklearn.metrics.ConfusionMatrixDisplay.from_estimator(best_model, SliceDataset(test_dataset), y_test, display_labels=test_dataset.classes, cmap='Blues', normalize='true').figure_
-    mlflow.log_figure(conf_matrix_fig, 'confusion_matrix.png')
     
-    # Generate and save ROC curve
+    # ROC Curve
     roc_curve_fig = sklearn.metrics.RocCurveDisplay.from_estimator(best_model, SliceDataset(test_dataset), y_test).figure_
-    mlflow.log_figure(roc_curve_fig, 'roc_curve.png')
     
+    # Precision-Recall Curve
     pr_curve_fig = sklearn.metrics.PrecisionRecallDisplay.from_estimator(best_model, SliceDataset(test_dataset), y_test).figure_
-    mlflow.log_figure(pr_curve_fig, 'precision_recall_curve.png')
-    
-    
-    # Save model history
-    best_model.history.to_file('/tmp/covidecg_best_model_history.json')
-    mlflow.log_artifact('/tmp/covidecg_best_model_history.json')
     
     # Generate train&valid Loss curve
     loss_fig = plt.figure()
     plt.plot(best_model.history[:, 'train_loss'], label='train loss')
     plt.legend()
-    mlflow.log_figure(loss_fig, 'train_loss.png')
     
-    mlflow.sklearn.log_model(best_model, 'best_model')
-    mlflow.log_text(str(best_model), 'model_topology.txt')
+    figures_dict = { 'conf_matrix': conf_matrix_fig, 'roc_curve': roc_curve_fig, 'pr_curve': pr_curve_fig, 'loss': loss_fig }
+    
+    if log_to_mlflow:
+        # Log metrics and save figures into MLFlow
+        
+        # Save model history
+        best_model.history.to_file('/tmp/covidecg_best_model_history.json')
+        
+        mlflow.log_metrics(metrics_dict)
+        
+        mlflow.log_text(str(conf_matrix), 'confusion_matrix.txt')
+        mlflow.log_figure(conf_matrix_fig, 'confusion_matrix.png')
+        mlflow.log_figure(roc_curve_fig, 'roc_curve.png')
+        mlflow.log_figure(pr_curve_fig, 'precision_recall_curve.png')
+        mlflow.log_figure(loss_fig, 'train_loss.png')
+        
+        mlflow.log_artifact('/tmp/covidecg_best_model_history.json')
+        
+        mlflow.sklearn.log_model(best_model, 'best_model')
+        mlflow.log_text(str(best_model), 'model_topology.txt')
+        
+    plt.clf()
+        
+    return metrics_dict, conf_matrix, figures_dict, best_model.history
