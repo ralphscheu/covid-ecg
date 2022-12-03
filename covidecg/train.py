@@ -43,34 +43,75 @@ IMAGE_TRANSFORMS = torchvision.transforms.Compose([
     SliceEcgGrid(),
     SliceTimesteps()
     ])
-        
+
+RAW_TRANSFORMS = torchvision.transforms.Compose([
+    torchvision.transforms.ToTensor(),
+    SliceTimesteps()
+    ])
+
+LFCC_TRANSFORMS = torchvision.transforms.Compose([
+    torchvision.transforms.ToTensor(),
+    SliceTimesteps()
+    ])
+
 
 @click.command()
 @click.option('--model', required=True, type=str)
+@click.option('--feats', required=True, type=click.Choice(['raw', 'img', 'imgblur', 'imgsharpen', 'imgsuperres', 'lfcc']))
 @click.option('--run-name', default='', type=str)
 @click.argument('dataset_root', required=True, type=click.Path(exists=True, file_okay=False, path_type=Path))
-def run_experiment(model, run_name, dataset_root):
+def run_experiment(model, feats, run_name, dataset_root):
     start_time = time.monotonic()
     mlflow.sklearn.autolog()
+    
     experiment = mlflow.set_experiment(experiment_name=Path(dataset_root).stem)
     with mlflow.start_run(experiment_id=experiment.experiment_id, run_name=run_name):
         conf = utils.load_exp_model_conf(os.path.join(os.getenv('PROJECT_ROOT'), 'conf', 'train_conf.yaml'))
         
-
         #
         # Load dataset
         #
-        logging.info(f"Loading train and test data from {dataset_root}")
+        LOG_STREAM.write(f"\nLoading train and test data from {dataset_root}")
         update_mlflow_logfile()
         
-        train_dataset = torchvision.datasets.ImageFolder(dataset_root / 'train', transform=IMAGE_TRANSFORMS)
+        mlflow.set_tag('feats', feats)
+        
+        if feats == 'raw':
+            # ECG voltage readings as csv files
+            train_dataset = torchvision.datasets.DatasetFolder(
+                dataset_root / 'train', 
+                loader=lambda f: data_utils.load_signal(f, return_cleaned_signal=True), 
+                extensions=['csv'], transform=RAW_TRANSFORMS)
+            test_dataset = torchvision.datasets.DatasetFolder(
+                dataset_root / 'test',
+                loader=lambda f: data_utils.load_signal(f, return_cleaned_signal=True), 
+                extensions=['csv'], transform=RAW_TRANSFORMS)
+        elif feats in ['img', 'imgblur', 'imgsharpen', 'imgsuperres']:
+            # ECG Image features as png files
+            train_dataset = torchvision.datasets.ImageFolder(dataset_root / 'train', transform=IMAGE_TRANSFORMS)
+            test_dataset = torchvision.datasets.ImageFolder(dataset_root / 'test', transform=IMAGE_TRANSFORMS)
+        elif feats == 'lfcc':
+            # LFCC features as npy files
+            train_dataset = torchvision.datasets.DatasetFolder(
+                dataset_root / 'train',
+                loader=np.load,
+                extensions=['npy'], transform=LFCC_TRANSFORMS)
+            test_dataset = torchvision.datasets.DatasetFolder(
+                dataset_root / 'test', 
+                loader=np.load,
+                extensions=['npy'], transform=LFCC_TRANSFORMS)
+        
         y_train = np.array(train_dataset.targets)
-        test_dataset = torchvision.datasets.ImageFolder(dataset_root / 'test', transform=IMAGE_TRANSFORMS)
         y_test = np.array(test_dataset.targets)
         
-        logging.info(f"Class labels targets: {train_dataset.class_to_idx}")
-        logging.info(f"Train on {len(y_train)} samples | class distribution: {str(np.unique(y_train, return_counts=True))}")
-        logging.info(f"Test on {len(y_test)} samples | class distribution: {str(np.unique(y_test, return_counts=True))}")
+        # print(train_dataset[0][0].shape)
+        # print(len(train_dataset), len(test_dataset))
+        # import sys
+        # sys.exit(0)
+        
+        LOG_STREAM.write(f"\nClass labels targets: {train_dataset.class_to_idx}")
+        LOG_STREAM.write(f"\nTrain on {len(y_train)} samples | class distribution: {str(np.unique(y_train, return_counts=True))}")
+        LOG_STREAM.write(f"\nTest on {len(y_test)} samples | class distribution: {str(np.unique(y_test, return_counts=True))}")
         update_mlflow_logfile()
 
         clf = utils.build_model(model, conf, train_dataset)
@@ -80,7 +121,7 @@ def run_experiment(model, run_name, dataset_root):
             scoring=sklearn.metrics.get_scorer('roc_auc'),
             cv=int(conf['num_cv_folds']), refit=True, error_score='raise', verbose=4)
         
-        logging.info(f"Start training on {len(os.environ['CUDA_VISIBLE_DEVICES'].split(','))} GPUs ({os.environ['CUDA_VISIBLE_DEVICES']})")
+        LOG_STREAM.write(f"\nStart training on {len(os.environ['CUDA_VISIBLE_DEVICES'].split(','))} GPUs ({os.environ['CUDA_VISIBLE_DEVICES']})")
         update_mlflow_logfile()
         gs.fit(SliceDataset(train_dataset), y_train)
         
@@ -90,16 +131,16 @@ def run_experiment(model, run_name, dataset_root):
         mlflow.log_artifact('/tmp/covidecg_cv_results_.csv')
 
 
-        logging.info(f"GridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
-        logging.info(f"GridSearchCV - Best Params: {gs.best_params_}")
+        LOG_STREAM.write(f"\nGridSearchCV - Best ROC-AUC Score in CV: {gs.best_score_}")
+        LOG_STREAM.write(f"\nGridSearchCV - Best Params: {gs.best_params_}")
         update_mlflow_logfile()
         
-        logging.info("Evaluating chosen model on test dataset...")
+        LOG_STREAM.write("\nEvaluating chosen model on test dataset...")
         utils.evaluate_experiment(test_dataset, y_test, gs.best_estimator_)
         update_mlflow_logfile()
         
         end_time = time.monotonic()
-        logging.info(f"Done. Finished in {timedelta(seconds=end_time - start_time)}")
+        LOG_STREAM.write(f"\nDone. Finished in {timedelta(seconds=end_time - start_time)}")
         
         update_mlflow_logfile()
 
@@ -113,4 +154,6 @@ if __name__ == '__main__':
             logging.StreamHandler(),  # log to stdout
             logging.StreamHandler(stream=LOG_STREAM)  # log to StringIO object for storing in MLFlow
         ])
+    logger = logging.getLogger(__name__)
+    
     run_experiment()
