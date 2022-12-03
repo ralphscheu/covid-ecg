@@ -14,15 +14,18 @@ from tqdm import tqdm
 #                 DATA LOADING HELPERS                   #
 ##########################################################
 
-def load_signal(filepath):
-    return pd.read_csv(filepath, index_col=0).to_numpy().T
 
-
-def clean_signal(signal, sampling_rate=500):
+def clean_signal(signal, sampling_rate):
     cleaned_signals = [nk.ecg_clean(lead, method='biosppy', sampling_rate=sampling_rate) for lead in signal]
     cleaned_signals = np.stack(cleaned_signals)
     return cleaned_signals
 
+def load_signal(filepath, return_cleaned_signal=False):
+    raw_signal = pd.read_csv(filepath, index_col=0).to_numpy().T
+    if return_cleaned_signal:
+        return clean_signal(raw_signal, int(os.getenv('SAMPLING_RATE', 500)))
+    else:
+        return raw_signal
 
 def generate_ecg_leads_grid(imgdata):
     imgdata = np.reshape(imgdata, (4, 3, imgdata.shape[1], imgdata.shape[2]))
