@@ -50,7 +50,7 @@ class SliceTimesteps(object):
 
         # right-pad signal to multiple of window_size_px for equally sized windows
         right_pad_len = window_size_px - (signal_len % window_size_px) if signal_len % window_size_px > 0 else 0
-        signal = np.pad(signal, ((0,0), (0,0), (0, right_pad_len)), mode='constant', constant_values=1.0)
+        signal = np.pad(signal, ((0,0), (0,0), (0, right_pad_len)), mode='constant', constant_values=0.0)
 
         for start in range(0, signal_len - window_size_px + 1, step_size_px):
             next_slice = signal[:, :, start:start + window_size_px]
