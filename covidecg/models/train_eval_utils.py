@@ -55,8 +55,8 @@ def get_dataset_splits(dataset, test_size=0.2, random_state=0):
     
     cnt_train = Counter(y_train)
     cnt_test = Counter(y_test)
-    logging.info(f"Training set:\t{cnt_train[0]} ctrl - {cnt_train[1]} postcovid")
-    logging.info(f"Test set:\t{cnt_test[0]} ctrl - {cnt_test[1]} postcovid")
+    print(f"Training set:\t{cnt_train[0]} ctrl - {cnt_train[1]} postcovid")
+    print(f"Test set:\t{cnt_test[0]} ctrl - {cnt_test[1]} postcovid")
     
     ###### ONLY FOR DEVELOPMENT
     # train_dataset = torch.utils.data.Subset(train_dataset, range(5))
@@ -68,7 +68,7 @@ def get_dataset_splits(dataset, test_size=0.2, random_state=0):
     train_dataset = SliceDataset(train_dataset, idx=0)
     test_dataset = SliceDataset(test_dataset, idx=0)
     
-    logging.info(f"Train on {len(train_dataset)}, test on {len(test_dataset)} samples")
+    print(f"Train on {len(train_dataset)}, test on {len(test_dataset)} samples")
     return train_dataset, test_dataset, y_train, y_test
 
 
@@ -78,14 +78,11 @@ def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipelin
     
     logging.debug("Building model...")
 
-    # Compute class weights for loss function if desired
-    # if conf['imbalance_mitigation'] == 'criterion_weights':
-    #     y_train = dataset.get_targets()
-    #     class_weight = sklearn.utils.class_weight.compute_class_weight(
-    #         class_weight='balanced', classes=np.unique(y_train), y=y_train)
-    #     class_weight = torch.Tensor(class_weight)
-    # else:
-    class_weight = None
+    # Compute class weights for loss function to mitigate smaller class imbalances after subject-aware train/test split
+    y_train = dataset.get_targets()
+    class_weight = sklearn.utils.class_weight.compute_class_weight(
+        class_weight='balanced', classes=np.unique(y_train), y=y_train)
+    class_weight = torch.Tensor(class_weight)
     
     
     def pad_batch(batch):
