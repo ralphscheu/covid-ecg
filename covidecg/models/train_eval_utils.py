@@ -40,46 +40,13 @@ def load_exp_model_conf(model_conf_path):
     return conf
 
 
-def get_dataset_splits(dataset, test_size=0.2, random_state=0):
-    train_idx, test_idx = train_test_split(
-        np.arange(len(dataset)),
-        test_size=test_size,
-        shuffle=True,
-        stratify=dataset.get_targets(),
-        random_state=random_state)
-    
-    train_dataset = torch.utils.data.Subset(dataset, train_idx)
-    test_dataset = torch.utils.data.Subset(dataset, test_idx)
-    y_train = dataset.get_targets()[train_idx]
-    y_test = dataset.get_targets()[test_idx]
-    
-    cnt_train = Counter(y_train)
-    cnt_test = Counter(y_test)
-    print(f"Training set:\t{cnt_train[0]} ctrl - {cnt_train[1]} postcovid")
-    print(f"Test set:\t{cnt_test[0]} ctrl - {cnt_test[1]} postcovid")
-    
-    ###### ONLY FOR DEVELOPMENT
-    # train_dataset = torch.utils.data.Subset(train_dataset, range(5))
-    # test_dataset = torch.utils.data.Subset(test_dataset, range(3))
-    # y_train = y_train[range(5)]
-    # y_test = y_test[range(3)]
-    ######
-    
-    train_dataset = SliceDataset(train_dataset, idx=0)
-    test_dataset = SliceDataset(test_dataset, idx=0)
-    
-    print(f"Train on {len(train_dataset)}, test on {len(test_dataset)} samples")
-    return train_dataset, test_dataset, y_train, y_test
-
-
-
-def build_model(model_name:str, conf:dict, dataset) -> imblearn.pipeline.Pipeline:
+def build_model(model_name:str, conf:dict, dataset):
     """ Configure model and optimizer according to configuration files """
     
     logging.debug("Building model...")
 
     # Compute class weights for loss function to mitigate smaller class imbalances after subject-aware train/test split
-    y_train = dataset.get_targets()
+    y_train = dataset.targets
     class_weight = sklearn.utils.class_weight.compute_class_weight(
         class_weight='balanced', classes=np.unique(y_train), y=y_train)
     class_weight = torch.Tensor(class_weight)
