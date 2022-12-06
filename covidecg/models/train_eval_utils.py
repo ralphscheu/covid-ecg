@@ -86,6 +86,30 @@ def build_model(model_name:str, conf:dict, dataset):
     except:
         raise Exception(f'Invalid model name "{model_name}!')
     
+        
+    if "CNN3D" in model_name:
+        conv_layer_dim = "Conv3D"
+    elif "CNN2D" in model_name:
+        conv_layer_dim = "Conv2D"
+    mlflow.log_param("conv_layer_dim", conv_layer_dim)
+    
+    if "MeanPool" in model_name:
+        pool_method = "MeanPool"
+    elif "MeanStdPool" in model_name:
+        pool_method = "MeanStdPool"
+    elif "AttnPool" in model_name:
+        pool_method = "AttnPool"
+    elif "LSTM" in model_name:
+        pool_method = "LSTM"
+    mlflow.log_param('pool_method', pool_method)
+    
+    if "Reduced" in model_name:
+        reduce_size = 1024
+    else:
+        reduce_size = None
+    mlflow.log_param("reduce_size", reduce_size)
+
+    
     print(f"Model: {model_name}")
     mlflow.log_param('model', model_name)
     
