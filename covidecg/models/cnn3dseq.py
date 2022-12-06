@@ -6,6 +6,7 @@ import torch
 import logging
 import mlflow
 
+REDUCE_SIZE = 1024
 
 ###########
 # MODULES #
@@ -108,21 +109,24 @@ class CNN3DSeqMeanStdPool(CNN3DSeq):
         Returns:
             np.ndarray: Softmax output
         """
-        logging.debug(f"model input: {x.shape} (batch_size, timesteps, d1, d2, d3)")
+                
+        # print(f"model input: {x.shape} (batch_size, timesteps, d1, d2, d3)  ||  {torch.sum(torch.isnan(x))}")
         x = self.forward_cnn3d(x)
+        # print(f"conv layers output: {x.shape}  ||  {torch.sum(torch.isnan(x))}")
         if self.reduction_size > 0:
             x = self.reduction(x)
-            logging.debug(f"reduction layer output: {x.shape}")
+            # print(f"reduction layer output: {x.shape}  ||  {torch.sum(torch.isnan(x))}")
         x = self.pooling(x)
-        logging.debug(f"pooling output: {x.shape}")
+        # print(f"pooling output: {x.shape}  ||  {torch.sum(torch.isnan(x))}")
         x = self.classifier(x)
-        logging.debug(f"classifier output: {x.shape}")
+        # print(f"classifier output: {x.shape}  ||  {torch.sum(torch.isnan(x))}")
+        
         return x
 
 
 class CNN3DSeqReducedMeanStdPool(CNN3DSeqMeanStdPool):
     def __init__(self, dropout=0.1, conv_kernel_size=(3, 3, 3)):
-        super().__init__(reduction_size=1024)
+        super().__init__(reduction_size=REDUCE_SIZE)
 
 
 
@@ -136,7 +140,7 @@ class CNN3DSeqMeanPool(CNN3DSeqMeanStdPool):
 class CNN3DSeqReducedMeanPool(CNN3DSeqMeanPool):
     """ CNN3DSeq variant applying Mean Pooling across timesteps """
     def __init__(self, dropout=0.1, reduction_size=-1, conv_kernel_size=(3, 3, 3)):
-        super().__init__(reduction_size=1024)
+        super().__init__(reduction_size=REDUCE_SIZE)
 
 
 
@@ -182,7 +186,7 @@ class CNN3DSeqAttnPool(CNN3DSeq):
 
 class CNN3DSeqReducedAttnPool(CNN3DSeqAttnPool):
     def __init__(self, dropout=0.1, conv_kernel_size=(3, 3, 3)):
-        super().__init__(reduction_size=1024)
+        super().__init__(reduction_size=REDUCE_SIZE)
 
 
 class CNN3DSeqLSTM(CNN3DSeq):
@@ -216,10 +220,4 @@ class CNN3DSeqLSTM(CNN3DSeq):
 
 class CNN3DSeqReducedLSTM(CNN3DSeqLSTM):
     def __init__(self, dropout=0.1, conv_kernel_size=(3, 3, 3)):
-        super().__init__(reduction_size=1024)
-
-
-# TODO: add CNN3DSeqAttnLSTM model
-
-
-# TODO: add CNN3DSeqReducedAttnLSTM model
+        super().__init__(reduction_size=REDUCE_SIZE)

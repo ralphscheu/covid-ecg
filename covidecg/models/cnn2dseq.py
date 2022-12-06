@@ -6,6 +6,7 @@ import torch
 import logging
 from covidecg.models.cnn3dseq import MeanStdPool, MeanPool, SelfAttentionPooling
 
+REDUCE_SIZE = 1024
 
 
 ###########
@@ -89,7 +90,21 @@ class CNN2DSeqMeanStdPool(CNN2DSeq):
 
 class CNN2DSeqReducedMeanStdPool(CNN2DSeqMeanStdPool):
     def __init__(self, dropout=0.1, conv_kernel_size=(3, 3)):
-        super().__init__(reduction_size=1024)
+        super().__init__(reduction_size=REDUCE_SIZE)
+
+
+
+class CNN2DSeqMeanPool(CNN2DSeqMeanStdPool):
+    """ CNN2DSeq variant applying Mean Pooling across timesteps """
+    def __init__(self, dropout=0.1, reduction_size=-1, conv_kernel_size=(3, 3)):
+        super().__init__(dropout=dropout, reduction_size=reduction_size, conv_kernel_size=conv_kernel_size)
+        self.pooling = MeanPool()
+
+class CNN2DSeqReducedMeanPool(CNN2DSeqMeanPool):
+    """ CNN2DSeq variant applying Mean Pooling across timesteps """
+    def __init__(self, dropout=0.1, reduction_size=-1, conv_kernel_size=(3, 3)):
+        super().__init__(reduction_size=REDUCE_SIZE)
+
 
 
 class CNN2DSeqAttnPool(CNN2DSeq):
@@ -120,7 +135,7 @@ class CNN2DSeqAttnPool(CNN2DSeq):
 
 class CNN2DSeqReducedAttnPool(CNN2DSeqAttnPool):
     def __init__(self, dropout=0.1, conv_kernel_size=(3, 3)):
-        super().__init__(reduction_size=1024)
+        super().__init__(reduction_size=REDUCE_SIZE)
 
 
 class CNN2DSeqLSTM(CNN2DSeq):
@@ -154,4 +169,4 @@ class CNN2DSeqLSTM(CNN2DSeq):
 
 class CNN2DSeqReducedLSTM(CNN2DSeqLSTM):
     def __init__(self, dropout=0.1, conv_kernel_size=(3, 3)):
-        super().__init__(reduction_size=1024)
+        super().__init__(reduction_size=REDUCE_SIZE)
