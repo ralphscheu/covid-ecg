@@ -18,13 +18,15 @@ def main(input_dir, output_dir, sampling_rate):
     files = list(pathlib.Path(input_dir).glob('*.csv'))
     for file in tqdm(files, desc="Processing files"):
         
-        rec_signal = data_utils.load_signal(file)
-        rec_signal = data_utils.clean_signal(rec_signal)
-        lfcc = np.stack([spafe.features.lfcc.lfcc(lead_signal, fs=sampling_rate) for lead_signal in rec_signal], axis=0)
+        rec_signal = data_utils.load_signal(file, return_cleaned_signal=True)
+        lfcc = np.stack([spafe.features.lfcc.lfcc(lead_signal, fs=sampling_rate, num_ceps=20, nfilts=24) for lead_signal in rec_signal], axis=0)
+        
+        if np.sum(np.isnan(lfcc)) > 0:
+            # Skip sample if LFCC contains NaN
+            continue
         
         out_file = output_dir / f"{file.stem}.npy"
         np.save(out_file, lfcc)
-        # print(f"{file} -> {out_file}")
 
 if __name__ == '__main__':
     load_dotenv(find_dotenv())  # load environment variables set in .env file

@@ -80,6 +80,9 @@ def main(input_dir, output_dir, prefix, min_length, max_length, sampling_rate):
 
             # save ECG data
             recording_id = f"{session_id}_rec{recording_counter}"
+            if recording_id == 'covid30621_20210614135649.030_rec15':
+                # skip invalid recording (LFCC features cannot be calculated)
+                continue
             rec_df.to_csv(f"{output_dir}/{recording_id}.csv", index=True)
             
             # # get patient information
