@@ -95,3 +95,5 @@ target/
 
 /covidecg/models/srgan_pytorch
 /SRGAN_x4-ImageNet-8c4a7569.pth.tar
+
+slurm-*.out
