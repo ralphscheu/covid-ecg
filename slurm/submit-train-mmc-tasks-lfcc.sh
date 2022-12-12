@@ -30,8 +30,8 @@ mkdir -p CACHE_DIR
 echo $0 $@
 
 ########################################################
-
-for modelName in CNN3DSeqMeanPool CNN3DSeqReducedMeanPool CNN3DSeqMeanStdPool CNN3DSeqReducedMeanStdPool CNN3DSeqAttnPool CNN3DSeqReducedAttnPool CNN3DSeqLSTM CNN3DSeqReducedLSTM CNN2DSeqReducedMeanStdPool CNN2DSeqReducedAttnPool CNN2DSeqMeanStdPool CNN2DSeqAttnPool CNN2DSeqReducedLSTM CNN2DSeqLSTM; do
+# CNN3DSeqMeanPool CNN3DSeqReducedMeanPool CNN3DSeqMeanStdPool CNN3DSeqReducedMeanStdPool CNN3DSeqAttnPool CNN3DSeqReducedAttnPool CNN3DSeqLSTM CNN3DSeqReducedLSTM CNN2DSeqReducedMeanStdPool CNN2DSeqReducedAttnPool CNN2DSeqMeanStdPool CNN2DSeqAttnPool CNN2DSeqReducedLSTM 
+for modelName in CNN2DSeqLSTM; do
 
     srun python3 covidecg/train.py --model $modelName --feats lfcc data/processed/mmc_tasks_lfcc/mmc_covid_vs_ctrl610
 
