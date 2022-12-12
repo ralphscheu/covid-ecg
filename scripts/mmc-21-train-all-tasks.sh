@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 
-model=$1
+echo $0 $@
 
-for exp in data/processed/mmc_*; do
-    python3 covidecg/train.py --model $model $exp
-done
+model=CNN3DSeqReducedMeanStdPool
+
+expDir=data/processed/mmc_tasks_lfcc
+python3 covidecg/train.py --model $model --feats raw 
+
+
+# for exp in data/processed/mmc_tasks_img/*; do
+#     python3 covidecg/train.py --model $model --feats img $exp
+# done
+
+
